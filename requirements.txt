@@ -6,3 +6,4 @@ networkx==3.5
 numpy==2.3.4
 scipy==1.16.3
 sympy==1.14.0
+notebook==7.5.3
