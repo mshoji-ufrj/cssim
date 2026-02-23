@@ -1,0 +1,8 @@
+# Ignore Python bytecode caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/

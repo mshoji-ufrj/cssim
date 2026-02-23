@@ -1,0 +1,127 @@
+{
+  "blocks": [
+    {
+      "id": "Block0",
+      "type": "input",
+      "x": 44,
+      "y": 129,
+      "attributes": {
+        "data-a": "",
+        "data-a0": "",
+        "data-f": "",
+        "data-m": "",
+        "data-name": "Input 1",
+        "data-offset": "",
+        "data-phase": "",
+        "data-signal": "step",
+        "data-t0": ""
+      },
+      "connectors": [
+        {
+          "position": "right",
+          "id": "Block0_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block1",
+      "type": "transfer_function",
+      "x": 243,
+      "y": 126,
+      "attributes": {
+        "data-denominator": "L*C*s^2+R*C*s+1",
+        "data-name": "TF",
+        "data-numerator": "1"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block1_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block1_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block2",
+      "type": "output",
+      "x": 506,
+      "y": 135,
+      "attributes": {
+        "data-name": "Output 3"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block2_connector_left"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "Connection2",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "right",
+        "id": "Block1_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block2",
+        "position": "left",
+        "id": "Block2_connector_left"
+      },
+      "path": [
+        [
+          365.5,
+          158
+        ],
+        [
+          365.5,
+          167
+        ],
+        [
+          507.5,
+          167
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection7",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block0",
+        "position": "right",
+        "id": "Block0_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "left",
+        "id": "Block1_connector_left"
+      },
+      "path": [
+        [
+          136.5,
+          161
+        ],
+        [
+          136.5,
+          158
+        ],
+        [
+          244.5,
+          158
+        ]
+      ],
+      "arrow": true
+    }
+  ],
+  "sim_time": 10,
+  "step_size": 0.001
+}
