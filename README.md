@@ -1,5 +1,7 @@
 # CSSIM Setup Guide
 
+CSSIM is hosted inside the `tcc` repository, under the `cssim/` folder.
+
 Follow the steps below to prepare the environment, create an isolated virtualenv, install the dependencies, and open the notebook.
 
 ## 1. Prerequisites
@@ -9,8 +11,8 @@ Follow the steps below to prepare the environment, create an isolated virtualenv
 
 ## 2. Clone the repository
 ```bash
-git clone https://github.com/mshoji-ufrj/cssim.git
-cd cssim
+git clone https://github.com/mshoji-ufrj/tcc.git
+cd tcc/cssim
 ```
 
 ## 3. Create and activate the virtualenv
