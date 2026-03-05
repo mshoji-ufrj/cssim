@@ -258,27 +258,27 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
         raise ValueError("Denominator must be at least first order.")
 
     # ---- coefficients (highest-first) ----
-    a = [float(c) for c in den_poly.all_coeffs()]
-    b = [float(c) for c in num_poly.all_coeffs()]
+    den_coeffs = [float(c) for c in den_poly.all_coeffs()]
+    num_coeffs = [float(c) for c in num_poly.all_coeffs()]
 
     # ---- normalize to monic denominator ----
-    a0 = a[0]
-    if abs(a0) == 0.0:
+    den_leading_coeff = den_coeffs[0]
+    if abs(den_leading_coeff) == 0.0:
         raise ValueError("Leading denominator coefficient must be nonzero.")
-    a = [ai / a0 for ai in a]
-    b = [bi / a0 for bi in b]
+    den_coeffs = [ai / den_leading_coeff for ai in den_coeffs]
+    num_coeffs = [bi / den_leading_coeff for bi in num_coeffs]
 
-    n = len(a) - 1  # system order
+    n = len(den_coeffs) - 1  # system order
 
     # ---- pad numerator to length n+1 ----
-    if len(b) < n + 1:
-        b = [0.0] * (n + 1 - len(b)) + b
+    if len(num_coeffs) < n + 1:
+        num_coeffs = [0.0] * (n + 1 - len(num_coeffs)) + num_coeffs
 
-    # Den: 1, a1, a2, ..., an
-    a1_to_n = a[1:]              # length n
-    # Num: b0, b1, ..., bn
-    b0 = b[0]
-    b1_to_n = b[1:]              # length n
+    # Den (monic): [1, a1, a2, ..., an]
+    a1_to_n = den_coeffs[1:]              # length n
+    # Num (aligned): [b0, b1, ..., bn]
+    b0 = num_coeffs[0]
+    b1_to_n = num_coeffs[1:]              # length n
 
     # ---- build A, B, C, D ----
     A = np.zeros((n, n))
@@ -297,8 +297,8 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
     if verbose:
         print("=== Controllable Canonical Form ===")
         print(f"Order n: {n}")
-        print(f"Den (monic): [1, a1, ..., an] = {a}")
-        print(f"Num (aligned): [b0, b1, ..., bn] = {b}")
+        print(f"Den (monic): [1, a1, ..., an] = {den_coeffs}")
+        print(f"Num (aligned): [b0, b1, ..., bn] = {num_coeffs}")
         print(f"A =\n{A}")
         print(f"B =\n{B}")
         print(f"C =\n{C}")
