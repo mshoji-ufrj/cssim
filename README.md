@@ -55,3 +55,29 @@ The browser should open automatically; if not, copy the URL printed in the termi
 ## 7. Next steps
 - Inside the notebook, run the cells in order to start the GUI (`open_gui(...)`) and explore the diagrams.
 - Always keep the virtualenv activated before running scripts or notebooks to ensure the correct package versions are used.
+
+## 8. Monitoramento de hardware com `psutil`
+Para registrar o uso de hardware enquanto o notebook `cssim_notebook.ipynb` estiver em uso, execute:
+
+```bash
+cd cssim
+python hardware_logger.py start --label sessao_cssim
+```
+
+Depois use o notebook normalmente. Ao terminar, em outro terminal, envie o sinal de parada:
+
+```bash
+cd cssim
+python hardware_logger.py stop --label sessao_cssim
+```
+
+Os arquivos gerados ficarão em `cssim/monitoring/sessao_cssim/`:
+- `samples.csv`: amostras brutas ao longo do tempo.
+- `summary.json`: resumo estruturado.
+- `report.md`: documento com consumo médio e picos.
+
+Também é possível verificar se a coleta ainda está ativa:
+
+```bash
+python hardware_logger.py status --label sessao_cssim
+```
