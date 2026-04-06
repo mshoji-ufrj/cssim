@@ -1,0 +1,82 @@
+{
+  "label": "cssim_notebook",
+  "interval_seconds": 1.0,
+  "started_at": "2026-04-05T21:13:29-03:00",
+  "stopped_at": "2026-04-05T21:15:45-03:00",
+  "sample_count": 132,
+  "output_dir": "/home/shoji/tcc_controle/tcc/cssim/monitoring/cssim_notebook",
+  "metrics": {
+    "cpu_percent": {
+      "label": "CPU",
+      "unit": "%",
+      "average": 6.296,
+      "peak": 30.0,
+      "peak_timestamp": "2026-04-05T21:13:44-03:00",
+      "samples": 132
+    },
+    "memory_percent": {
+      "label": "RAM",
+      "unit": "%",
+      "average": 17.98,
+      "peak": 21.1,
+      "peak_timestamp": "2026-04-05T21:15:35-03:00",
+      "samples": 132
+    },
+    "memory_used_gb": {
+      "label": "RAM used",
+      "unit": "GB",
+      "average": 2.756,
+      "peak": 3.238,
+      "peak_timestamp": "2026-04-05T21:15:37-03:00",
+      "samples": 132
+    },
+    "swap_percent": {
+      "label": "Swap",
+      "unit": "%",
+      "average": 0.0,
+      "peak": 0.0,
+      "peak_timestamp": "2026-04-05T21:13:30-03:00",
+      "samples": 132
+    },
+    "disk_read_mb_s": {
+      "label": "Disk read",
+      "unit": "MB/s",
+      "average": 0.0,
+      "peak": 0.004,
+      "peak_timestamp": "2026-04-05T21:15:09-03:00",
+      "samples": 132
+    },
+    "disk_write_mb_s": {
+      "label": "Disk write",
+      "unit": "MB/s",
+      "average": 0.142,
+      "peak": 1.353,
+      "peak_timestamp": "2026-04-05T21:15:45-03:00",
+      "samples": 132
+    },
+    "net_sent_mb_s": {
+      "label": "Network sent",
+      "unit": "MB/s",
+      "average": 0.175,
+      "peak": 3.479,
+      "peak_timestamp": "2026-04-05T21:13:44-03:00",
+      "samples": 132
+    },
+    "net_recv_mb_s": {
+      "label": "Network received",
+      "unit": "MB/s",
+      "average": 0.176,
+      "peak": 3.487,
+      "peak_timestamp": "2026-04-05T21:13:44-03:00",
+      "samples": 132
+    },
+    "temperature_c": {
+      "label": "Temperature",
+      "unit": "°C",
+      "average": 39.095,
+      "peak": 48.58,
+      "peak_timestamp": "2026-04-05T21:13:50-03:00",
+      "samples": 132
+    }
+  }
+}
