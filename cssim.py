@@ -419,7 +419,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
     """
     Classical control-inspired algebraic solver builder.
     Models algebraic connections between blocks (gains, operations, passthrough) using symbolic substitution logic,
-    but implemented as a linear system M * y = C_matrix * x + input_terms.
+    but implemented as a linear system M * y = H_matrix * x + input_terms.
     This version supports arbitrary interconnection, including feedback loops.
     """
     output_ids = [b["id"] for b in static_blocks] + [b["id"] for b in tf_blocks] + [b["id"] for b in pid_blocks]
@@ -427,7 +427,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
     n_states = total_states
 
     M = np.eye(len(output_ids))  # Initialize with identity: y_i = y_i
-    C_matrix = np.zeros((len(output_ids), n_states))
+    H_matrix = np.zeros((len(output_ids), n_states))
     input_map = {i: [] for i in range(len(output_ids))}
 
     for block in static_blocks:
@@ -483,7 +483,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
             M[i, output_index[src]] = -D
         else:
             input_map[i].append((src, D))
-        C_matrix[i, tf["state_slice"]] = tf["C"].flatten()
+        H_matrix[i, tf["state_slice"]] = tf["C"].flatten()
 
     for pid in pid_blocks:
         i = output_index[pid["id"]]
@@ -496,11 +496,11 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
             input_map[i].append((src, kp))
 
         if pid["integral_slice"] is not None:
-            C_matrix[i, pid["integral_slice"]] = pid["Ki"]
+            H_matrix[i, pid["integral_slice"]] = pid["Ki"]
 
         derivative = pid["derivative"]
         if derivative is not None:
-            C_matrix[i, derivative["slice"]] = derivative["C"].flatten()
+            H_matrix[i, derivative["slice"]] = derivative["C"].flatten()
             D = derivative["D"]
             if abs(D) > 0:
                 if src in output_index:
@@ -510,7 +510,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
 
     M_inv = np.linalg.inv(M)
 
-    return output_ids, output_index, M_inv, input_map, C_matrix
+    return output_ids, output_index, M_inv, input_map, H_matrix
 
 
 def generate_input_signal(data):
@@ -561,7 +561,7 @@ def generate_input_signal(data):
     return funcs
 
 
-def compute_rhs(input_signals, tf_blocks, pid_blocks, output_ids, output_index, M_inv, input_map, C):
+def compute_rhs(input_signals, tf_blocks, pid_blocks, output_ids, output_index, M_inv, input_map, H_matrix):
     """
     Computes the right-hand side of the state-space model using algebraic resolution.
 
@@ -572,14 +572,14 @@ def compute_rhs(input_signals, tf_blocks, pid_blocks, output_ids, output_index, 
     - output_index: mapping from block ID to row index in M
     - M_inv: inverse of M matrix (algebraic solver)
     - input_map: external input contributions to each equation
-    - C: matrix multiplying state vector x(t)
+    - H_matrix: matrix multiplying state vector x(t) in the algebraic subsystem
 
     Returns:
     - Function f(t, x) = dx/dt for numerical integration
     """
     def rhs(t, x):
-        # Step 1: Compute C * x(t)
-        rhs_vec = C.dot(x)
+        # Step 1: Compute H_matrix * x(t)
+        rhs_vec = H_matrix.dot(x)
 
         # Step 2: Add input contributions: sum of alpha_i * u_i(t)
         for i, input_terms in input_map.items():
@@ -587,7 +587,7 @@ def compute_rhs(input_signals, tf_blocks, pid_blocks, output_ids, output_index, 
                 func = input_signals.get(u_id)
                 rhs_vec[i] += coeff * func(t) if func else 0.0
 
-        # Step 3: Solve output = M⁻¹ ( C x + inputs )
+        # Step 3: Solve output = M⁻¹ ( H_matrix x + inputs )
         output = M_inv.dot(rhs_vec)
 
         def eval_node(node_id):
@@ -636,17 +636,17 @@ def run_simulation(data, step_size=0.001, simulation_time=10, param_values=None)
         data, G, param_values=param_values
     )
     input_signal_funcs = generate_input_signal(data)
-    output_ids, output_index, M_inv, input_map, C = build_solver(
+    output_ids, output_index, M_inv, input_map, H_matrix = build_solver(
         input_blocks, static_blocks, tf_blocks, pid_blocks, total_states
     )
-    rhs = compute_rhs(input_signal_funcs, tf_blocks, pid_blocks, output_ids, output_index, M_inv, input_map, C)
-    x0 = np.zeros(C.shape[1])
+    rhs = compute_rhs(input_signal_funcs, tf_blocks, pid_blocks, output_ids, output_index, M_inv, input_map, H_matrix)
+    x0 = np.zeros(H_matrix.shape[1])
     t_eval = np.arange(0, simulation_time, step_size)
     sol = solve_ivp(rhs, (0, simulation_time), x0, t_eval=t_eval)
     output_out = {output_id: np.zeros_like(sol.t) for output_id in output_blocks}
     out_sources = {output_id: list(G.predecessors(output_id))[0] for output_id in output_blocks}
     for k, t_k in enumerate(sol.t):
-        rhs_vec = C.dot(sol.y[:, k])
+        rhs_vec = H_matrix.dot(sol.y[:, k])
         for i, entries in input_map.items():
             for input_id, coeff in entries:
                 func = input_signal_funcs.get(input_id)

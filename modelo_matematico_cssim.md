@@ -349,7 +349,7 @@ produz, no notebook:
 - `output_index = {'Block1': 0, 'Block2': 1}`
 - `M_inv = [[1, -1], [0, 1]]`
 - `input_map = {0: [('Block0', 1.0)], 1: []}`
-- `C_matrix = [[0], [1]]`
+- `H_matrix = [[0], [1]]`
 
 Interpretando esses objetos com mais calma:
 
@@ -357,7 +357,7 @@ Interpretando esses objetos com mais calma:
 - `output_index` apenas associa cada bloco à sua posição dentro desse vetor;
 - `M_inv` é a inversa da matriz que resolve o acoplamento algébrico entre esses sinais;
 - `input_map` informa quais entradas externas contribuem diretamente para cada equação algébrica;
-- `C_matrix` informa como os estados internos contribuem para essas mesmas equações.
+- `H_matrix` informa como os estados internos contribuem para essas mesmas equações e corresponde, no código, à matriz $\mathbf{H}$ da formulação matemática.
 
 Como `Block1` é o somador e `Block2` é o bloco dinâmico, o vetor algébrico pode ser escrito como
 
