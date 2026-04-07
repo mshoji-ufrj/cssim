@@ -3,18 +3,18 @@
     {
       "id": "Block0",
       "type": "input",
-      "x": 71,
-      "y": 247,
+      "x": 55,
+      "y": 238,
       "attributes": {
-        "data-a": "1",
-        "data-a0": "0",
-        "data-f": "",
-        "data-m": "",
-        "data-name": "Degrau unitário",
-        "data-offset": "",
-        "data-phase": "",
+        "data-name": "Entrada",
         "data-signal": "step",
-        "data-t0": "0"
+        "data-t0": "0",
+        "data-a0": "0",
+        "data-a": "1",
+        "data-m": "",
+        "data-f": "",
+        "data-phase": "",
+        "data-offset": ""
       },
       "connectors": [
         {
@@ -25,30 +25,9 @@
     },
     {
       "id": "Block1",
-      "type": "transfer_function",
-      "x": 312,
-      "y": 250,
-      "attributes": {
-        "data-denominator": "T*s",
-        "data-name": "TF",
-        "data-numerator": "1"
-      },
-      "connectors": [
-        {
-          "position": "left",
-          "id": "Block1_connector_left"
-        },
-        {
-          "position": "right",
-          "id": "Block1_connector_right"
-        }
-      ]
-    },
-    {
-      "id": "Block2",
       "type": "operation",
-      "x": 207,
-      "y": 255,
+      "x": 224,
+      "y": 244,
       "attributes": {
         "data-name": "",
         "data-operator-1": "+",
@@ -58,23 +37,44 @@
       "connectors": [
         {
           "position": "left",
+          "id": "Block1_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block1_connector_right"
+        },
+        {
+          "position": "bottom",
+          "id": "Block1_connector_bottom"
+        }
+      ]
+    },
+    {
+      "id": "Block2",
+      "type": "transfer_function",
+      "x": 338,
+      "y": 241,
+      "attributes": {
+        "data-name": "Função de transferência",
+        "data-numerator": "1",
+        "data-denominator": "T*s"
+      },
+      "connectors": [
+        {
+          "position": "left",
           "id": "Block2_connector_left"
         },
         {
           "position": "right",
           "id": "Block2_connector_right"
-        },
-        {
-          "position": "bottom",
-          "id": "Block2_connector_bottom"
         }
       ]
     },
     {
       "id": "Block3",
       "type": "output",
-      "x": 504,
-      "y": 251,
+      "x": 538,
+      "y": 243,
       "attributes": {
         "data-name": "Saída"
       },
@@ -97,22 +97,22 @@
       },
       "to": {
         "type": "block-connector",
-        "blockId": "Block2",
+        "blockId": "Block1",
         "position": "left",
-        "id": "Block2_connector_left"
+        "id": "Block1_connector_left"
       },
       "path": [
         [
-          163.5,
-          279
+          147.5,
+          270
         ],
         [
-          163.5,
-          282
+          147.5,
+          271
         ],
         [
-          208.5,
-          282
+          225.5,
+          271
         ]
       ],
       "arrow": true
@@ -121,28 +121,28 @@
       "id": "Connection2",
       "from": {
         "type": "block-connector",
-        "blockId": "Block2",
+        "blockId": "Block1",
         "position": "right",
-        "id": "Block2_connector_right"
+        "id": "Block1_connector_right"
       },
       "to": {
         "type": "block-connector",
-        "blockId": "Block1",
+        "blockId": "Block2",
         "position": "left",
-        "id": "Block1_connector_left"
+        "id": "Block2_connector_left"
       },
       "path": [
         [
-          259.5,
-          282
+          276.5,
+          271
         ],
         [
-          259.5,
-          282
+          276.5,
+          273
         ],
         [
-          313.5,
-          282
+          339.5,
+          273
         ]
       ],
       "arrow": true
@@ -151,39 +151,35 @@
       "id": "Connection3",
       "from": {
         "type": "block-connector",
-        "blockId": "Block1",
+        "blockId": "Block2",
         "position": "right",
-        "id": "Block1_connector_right"
+        "id": "Block2_connector_right"
       },
       "to": {
         "type": "line-connector",
-        "id": "lineConnector2"
+        "id": "lineConnector1"
       },
       "path": [
         [
-          434.5,
-          282
+          460.5,
+          273
         ],
         [
-          434.5,
-          283
+          460.5,
+          275
         ],
         [
-          468,
-          283
-        ],
-        [
-          472,
-          283
+          499,
+          275
         ]
       ],
       "arrow": false
     },
     {
-      "id": "Connection5",
+      "id": "Connection4",
       "from": {
         "type": "line-connector",
-        "id": "lineConnector2"
+        "id": "lineConnector1"
       },
       "to": {
         "type": "block-connector",
@@ -193,56 +189,64 @@
       },
       "path": [
         [
-          472,
-          283
+          499,
+          275
         ],
         [
-          505.5,
-          283
+          539.5,
+          275
         ]
       ],
       "arrow": true
     },
     {
-      "id": "Connection6",
+      "id": "Connection5",
       "from": {
         "type": "line-connector",
-        "id": "lineConnector2"
+        "id": "lineConnector1"
       },
       "to": {
         "type": "block-connector",
-        "blockId": "Block2",
+        "blockId": "Block1",
         "position": "bottom",
-        "id": "Block2_connector_bottom"
+        "id": "Block1_connector_bottom"
       },
       "path": [
         [
-          472,
-          283
+          499,
+          275
         ],
         [
-          472,
-          286
+          499,
+          276
         ],
         [
-          472,
-          286
+          499,
+          276
         ],
         [
-          472,
-          364
+          499,
+          379
         ],
         [
-          466,
-          364
+          490,
+          379
         ],
         [
-          234,
-          364
+          250,
+          379
         ],
         [
-          234,
-          307.5
+          250,
+          348
+        ],
+        [
+          251,
+          348
+        ],
+        [
+          251,
+          296.5
         ]
       ],
       "arrow": true
