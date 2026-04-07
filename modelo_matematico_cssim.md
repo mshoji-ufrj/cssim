@@ -9,12 +9,12 @@ Este documento revisa, de forma alinhada ao notebook [cssim_first_order.ipynb](c
 O CSSIM transforma um diagrama de blocos em um problema dinâmico da forma
 
 $$
-\dot{x}(t) = f\bigl(t, x(t)\bigr),
+\dot{\mathbf{x}}(t) = f\bigl(t, \mathbf{x}(t)\bigr),
 $$
 
 em que:
 
-- $x(t)$ é o vetor global de estados internos dos blocos dinâmicos;
+- $\mathbf{x}(t)$ é o vetor global de estados internos dos blocos dinâmicos;
 - os blocos algébricos são reunidos em um sistema linear;
 - as entradas externas são convertidas em funções do tempo;
 - as saídas são reconstruídas a partir das interconexões do diagrama.
@@ -132,13 +132,13 @@ No exemplo do notebook, os nós identificados são:
 As arestas mostradas pelo notebook são:
 
 $$
-	ext{Block0} \to \text{Block1},
+\text{Block0} \to \text{Block1},
 \qquad
-	ext{Block1} \to \text{Block2},
+\text{Block1} \to \text{Block2},
 \qquad
-	ext{Block2} \to \text{Block3},
+\text{Block2} \to \text{Block3},
 \qquad
-	ext{Block2} \to \text{Block1}.
+\text{Block2} \to \text{Block1}.
 $$
 
 Logo, a realimentação negativa fica explícita no grafo: a saída do bloco dinâmico retorna ao somador.
@@ -172,7 +172,7 @@ A função `set_parameters(...)` registra esse valor, e `resolve_param(...)` sub
 No exemplo:
 
 $$
-	exttt{resolve\_param("T")} = 1.0.
+\texttt{resolve\_param("T")} = 1.0.
 $$
 
 Assim, o denominador simbólico do bloco
@@ -222,7 +222,7 @@ De forma geral, essa etapa separa:
 Depois disso, o CSSIM concatena todos os estados dos blocos dinâmicos em um vetor global
 
 $$
-x(t) = \bigl(x_1(t), x_2(t), \ldots, x_n(t)\bigr)^\top.
+\mathbf{x}(t) = \bigl(x_1(t), x_2(t), \ldots, x_n(t)\bigr)^\top.
 $$
 
 No exemplo do notebook, esse vetor tem dimensão 1.
@@ -239,10 +239,10 @@ $$
 G(s)=\frac{N(s)}{D(s)},
 $$
 
-o CSSIM constrói matrizes $(A,B,C,D)$ tais que
+o CSSIM constrói matrizes $(\mathbf{A},\mathbf{B},\mathbf{C},\mathbf{D})$ tais que
 
 $$
-G(s)=C(sI-A)^{-1}B + D.
+G(s)=\mathbf{C}(s\mathbf{I}-\mathbf{A})^{-1}\mathbf{B} + \mathbf{D}.
 $$
 
 No notebook, a chamada é feita com:
@@ -254,13 +254,13 @@ A_tf, B_tf, C_tf, D_tf = tf_to_ss("1", "T*s", param_values={"T": 1})
 Como $T=1$, o resultado numérico mostrado é:
 
 $$
-A = [0],
+\mathbf{A} = [0],
 \qquad
-B = [1],
+\mathbf{B} = [1],
 \qquad
-C = [1],
+\mathbf{C} = [1],
 \qquad
-D = 0.
+\mathbf{D} = 0.
 $$
 
 Em forma simbólica, antes da substituição $T=1$, a interpretação é
@@ -283,56 +283,54 @@ Antes de olhar o caso particular do notebook, vale entender a ideia geral do que
 
 Quando o diagrama possui blocos dinâmicos e blocos algébricos interligados, o problema natural não aparece imediatamente como uma única EDO explícita. Primeiro, o CSSIM separa as variáveis em dois grupos:
 
-- **estados dinâmicos** $x(t)$, associados aos blocos que têm memória, como funções de transferência e controladores com integradores;
-- **saídas algébricas internas** $y(t)$, associadas aos sinais produzidos por somadores, ganhos, saídas de blocos dinâmicos e outros blocos que dependem instantaneamente de entradas e estados.
+- **estados dinâmicos** $\mathbf{x}(t)$, associados aos blocos que têm memória, como funções de transferência e controladores com integradores;
+- **saídas algébricas internas** $\mathbf{y}(t)$, associadas aos sinais produzidos por somadores, ganhos, saídas de blocos dinâmicos e outros blocos que dependem instantaneamente de entradas e estados.
 
-Também existe o conjunto das **entradas externas** $u(t)$, geradas pelos blocos de entrada do diagrama.
+Também existe o conjunto das **entradas externas** $\mathbf{u}(t)$, geradas pelos blocos de entrada do diagrama.
 
 De forma genérica, o CSSIM monta primeiro um sistema algébrico do tipo
 
 $$
-M\,y(t)=H\,x(t)+P\,u(t),
+\mathbf{M}\,\mathbf{y}(t)=\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}(t),
 $$
 
 em que:
 
-- $y(t)$ reúne as saídas internas dos blocos relevantes do diagrama;
-- $x(t)$ é o vetor global de estados;
-- $u(t)$ reúne os sinais externos aplicados ao diagrama;
-- $M$ descreve como as saídas algébricas dependem umas das outras;
-- $H$ projeta a contribuição dos estados internos sobre as variáveis algébricas;
-- $P$ projeta a contribuição das entradas externas.
+- $\mathbf{y}(t)$ reúne as saídas internas dos blocos relevantes do diagrama;
+- $\mathbf{x}(t)$ é o vetor global de estados;
+- $\mathbf{u}(t)$ reúne os sinais externos aplicados ao diagrama;
+- $\mathbf{M}$ descreve como as saídas algébricas dependem umas das outras;
+- $\mathbf{H}$ projeta a contribuição dos estados internos sobre as variáveis algébricas;
+- $\mathbf{u}(t)$ representa diretamente a contribuição das entradas externas na forma compacta adotada aqui.
 
-Aqui, a letra $P$ foi escolhida para evitar ambiguidade com $G(s)$, que no restante do texto representa função de transferência.
-
-Se $M$ é inversível, então o sistema algébrico pode ser resolvido como
+Se $\mathbf{M}$ é inversível, então o sistema algébrico pode ser resolvido como
 
 $$
-y(t)=M^{-1}\bigl(H\,x(t)+P\,u(t)\bigr).
+\mathbf{y}(t)=\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}(t)\bigr).
 $$
 
 Em seguida, o CSSIM monta a parte dinâmica. De forma genérica, a derivada dos estados pode ser escrita como
 
 $$
-\dot{x}(t)=A\,x(t)+B\,y(t)+E\,u(t).
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{y}(t)+\mathbf{E}\,\mathbf{u}(t).
 $$
 
 Essa equação diz que a evolução dos estados pode depender:
 
-- do próprio estado atual $x(t)$;
-- dos sinais algébricos internos $y(t)$;
-- das entradas externas $u(t)$.
+- do próprio estado atual $\mathbf{x}(t)$;
+- dos sinais algébricos internos $\mathbf{y}(t)$;
+- das entradas externas $\mathbf{u}(t)$.
 
-Substituindo a expressão de $y(t)$, o sistema fica totalmente em função de $x(t)$ e de $u(t)$:
+Substituindo a expressão de $\mathbf{y}(t)$, o sistema fica totalmente em função de $\mathbf{x}(t)$ e de $\mathbf{u}(t)$:
 
 $$
-\dot{x}(t)=A\,x(t)+B\,M^{-1}\bigl(H\,x(t)+P\,u(t)\bigr)+E\,u(t).
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}(t)\bigr)+\mathbf{E}\,\mathbf{u}(t).
 $$
 
 Agrupando os termos,
 
 $$
-\dot{x}(t)=\bigl(A+B\,M^{-1}H\bigr)x(t)+\bigl(B\,M^{-1}P+E\bigr)u(t).
+\dot{\mathbf{x}}(t)=\bigl(\mathbf{A}+\mathbf{B}\,\mathbf{M}^{-1}\mathbf{H}\bigr)\mathbf{x}(t)+\bigl(\mathbf{B}\,\mathbf{M}^{-1}+\mathbf{E}\bigr)\mathbf{u}(t).
 $$
 
 Esse é o ponto principal da etapa 6: o CSSIM pega uma interconexão de blocos, resolve as dependências algébricas internas e a transforma em uma EDO explícita utilizável pelo integrador numérico.
@@ -355,7 +353,7 @@ produz, no notebook:
 
 Interpretando esses objetos com mais calma:
 
-- `output_ids` indica quais sinais internos foram escolhidos para compor o vetor algébrico $y(t)$;
+- `output_ids` indica quais sinais internos foram escolhidos para compor o vetor algébrico $\mathbf{y}(t)$;
 - `output_index` apenas associa cada bloco à sua posição dentro desse vetor;
 - `M_inv` é a inversa da matriz que resolve o acoplamento algébrico entre esses sinais;
 - `input_map` informa quais entradas externas contribuem diretamente para cada equação algébrica;
@@ -364,12 +362,12 @@ Interpretando esses objetos com mais calma:
 Como `Block1` é o somador e `Block2` é o bloco dinâmico, o vetor algébrico pode ser escrito como
 
 $$
-y(t)=\bigl(e(t), c(t)\bigr)^\top.
+\mathbf{y}(t)=\bigl(e(t), c(t)\bigr)^\top.
 $$
 
 Isso é importante: nessa etapa o CSSIM ainda não está integrando nada. Ele está apenas respondendo à pergunta:
 
-> dado um estado atual $x(t)$ e um valor atual da entrada $r(t)$, quais são instantaneamente os sinais internos do diagrama?
+> dado um estado atual $\mathbf{x}(t)$ e um valor atual da entrada $r(t)$, quais são instantaneamente os sinais internos do diagrama?
 
 No exemplo, as equações algébricas são
 
@@ -384,22 +382,22 @@ $$
 Em forma compacta, isso pode ser escrito como
 
 $$
-M\,y(t)=b(t),
+\mathbf{M}\,\mathbf{y}(t)=\mathbf{b}(t),
 $$
 
 com
 
 $$
-M = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix},
+\mathbf{M} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix},
 $$
 
 $$
-y(t)=\bigl(e(t), c(t)\bigr)^\top,
+\mathbf{y}(t)=\bigl(e(t), c(t)\bigr)^\top,
 \qquad
-b(t)=\bigl(r(t), \tfrac{1}{T}x(t)\bigr)^\top.
+\mathbf{b}(t)=\bigl(r(t), \tfrac{1}{T}x(t)\bigr)^\top.
 $$
 
-Se o preview continuar sem renderizar a matriz $M$, a forma por componentes é exatamente:
+Se o preview continuar sem renderizar a matriz $\mathbf{M}$, a forma por componentes é exatamente:
 
 $$
 e(t)+c(t)=r(t),
@@ -407,16 +405,16 @@ e(t)+c(t)=r(t),
 c(t)=\frac{1}{T}x(t).
 $$
 
-Como o notebook já fornece $M^{-1}$, a solução pode ser escrita diretamente como
+Como o notebook já fornece $\mathbf{M}^{-1}$, a solução pode ser escrita diretamente como
 
 $$
-y(t)=M^{-1}\bigl(C_{\text{alg}}x(t)+u_{\text{ext}}(t)\bigr),
+\mathbf{y}(t)=\mathbf{M}^{-1}\bigl(\mathbf{C}_{\text{alg}}\mathbf{x}(t)+\mathbf{u}_{\text{ext}}(t)\bigr),
 $$
 
 com
 
 $$
-M^{-1} = \begin{pmatrix} 1 & -1 \\ 0 & 1 \end{pmatrix}.
+\mathbf{M}^{-1} = \begin{pmatrix} 1 & -1 \\ 0 & 1 \end{pmatrix}.
 $$
 
 Em outras palavras, o `build_solver(...)` monta a parte de **fechamento instantâneo da malha**. Ele resolve o somador, a realimentação e as relações diretas entre sinais sem ainda integrar a dinâmica.
@@ -426,15 +424,15 @@ Em outras palavras, o `build_solver(...)` monta a parte de **fechamento instant�
 A função `compute_rhs(...)` constrói a função do lado direito da EDO global,
 
 $$
-\dot{x}(t)=f(t,x).
+\dot{\mathbf{x}}(t)=f(t,\mathbf{x}).
 $$
 
 Agora aparece a segunda metade da etapa 6. Depois de o sistema algébrico informar quanto vale cada sinal interno, o CSSIM usa essas informações para calcular a derivada dos estados. Em linguagem prática:
 
 1. avalia a entrada externa no instante $t$;
-2. usa $x(t)$ e a entrada para resolver o sistema algébrico;
+2. usa $\mathbf{x}(t)$ e a entrada para resolver o sistema algébrico;
 3. obtém os sinais internos, como erro, saída de somadores e saídas de blocos;
-4. usa esses sinais para calcular $\dot{x}(t)$.
+4. usa esses sinais para calcular $\dot{\mathbf{x}}(t)$.
 
 Portanto, `compute_rhs(...)` encapsula exatamente a função que o integrador numérico precisa consultar repetidamente.
 
@@ -443,10 +441,10 @@ Portanto, `compute_rhs(...)` encapsula exatamente a função que o integrador nu
 Juntando as duas partes, a etapa 6 pode ser resumida assim:
 
 1. o diagrama é convertido em relações algébricas entre sinais internos;
-2. essas relações são organizadas na forma matricial $M y = Hx + Pu$;
-3. o vetor algébrico é resolvido como $y = M^{-1}(Hx + Pu)$;
-4. a dinâmica dos blocos com estado é escrita como $\dot{x} = A x + B y + E u$;
-5. a substituição de $y$ produz uma única EDO explícita.
+2. essas relações são organizadas na forma matricial $\mathbf{M}\,\mathbf{y} = \mathbf{H}\,\mathbf{x} + \mathbf{u}$;
+3. o vetor algébrico é resolvido como $\mathbf{y} = \mathbf{M}^{-1}(\mathbf{H}\,\mathbf{x} + \mathbf{u})$;
+4. a dinâmica dos blocos com estado é escrita como $\dot{\mathbf{x}} = \mathbf{A}\,\mathbf{x} + \mathbf{B}\,\mathbf{y} + \mathbf{E}\,\mathbf{u}$;
+5. a substituição de $\mathbf{y}$ produz uma única EDO explícita.
 
 Isso significa que o CSSIM transforma um diagrama de blocos com realimentações em um modelo matemático pronto para simulação, sem que o usuário precise montar manualmente as equações do sistema inteiro.
 
@@ -455,13 +453,13 @@ Isso significa que o CSSIM transforma um diagrama de blocos com realimentações
 No sistema do notebook, existe apenas um estado interno, associado ao bloco de função de transferência $G(s)=\frac{1}{Ts}$. Portanto,
 
 $$
-x(t) \in \mathbb{R}.
+\mathbf{x}(t) \in \mathbb{R}.
 $$
 
 O vetor algébrico escolhido pelo CSSIM reúne dois sinais:
 
 $$
-y(t)=\bigl(e(t),c(t)\bigr)^\top,
+\mathbf{y}(t)=\bigl(e(t),c(t)\bigr)^\top,
 $$
 
 onde:
@@ -472,7 +470,7 @@ onde:
 Como a entrada externa é a referência, podemos escrever
 
 $$
-u(t)=r(t).
+\mathbf{u}(t)=r(t).
 $$
 
 As relações estruturais do diagrama são:
@@ -485,7 +483,7 @@ $$
 c(t)=\frac{1}{T}x(t).
 $$
 
-A primeira equação vem do somador com sinais $+$ e $-$; a segunda vem da realização em espaço de estados do integrador $\frac{1}{Ts}$.
+A primeira equação vem do somador com sinais `+` e `-`; a segunda vem da realização em espaço de estados do integrador $\frac{1}{Ts}$.
 
 Escrevendo essas relações em forma de sistema,
 
@@ -499,17 +497,15 @@ $$
 Ou seja,
 
 $$
-M\,y(t)=H\,x(t)+P\,r(t).
+\mathbf{M}\,\mathbf{y}(t)=\mathbf{H}\,\mathbf{x}(t)+r(t).
 $$
 
 Se quisermos apenas identificar as matrizes envolvidas, então elas são
 
 $$
-M = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix},
+\mathbf{M} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix},
 \qquad
-H = \begin{pmatrix} 0 \\ \frac{1}{T} \end{pmatrix},
-\qquad
-P = \begin{pmatrix} 1 \\ 0 \end{pmatrix}.
+\mathbf{H} = \begin{pmatrix} 0 \\ \frac{1}{T} \end{pmatrix}.
 $$
 
 Resolvendo esse sistema, o CSSIM obtém instantaneamente $e(t)$ e $c(t)$ para qualquer valor atual de $x(t)$ e de $r(t)$.
@@ -564,6 +560,7 @@ Portanto, no exemplo de primeira ordem, a etapa 6 faz exatamente o seguinte:
 - usa esse erro para determinar a derivada do estado interno;
 - elimina as variáveis intermediárias e produz a equação diferencial final da malha fechada.
 
+No exemplo, como
 
 $$
 \dot{x}(t)=e(t)
@@ -706,17 +703,17 @@ Essa etapa não altera o modelo matemático, mas conecta a análise teórica e n
 Em resumo, o método do CSSIM pode ser descrito por duas relações acopladas:
 
 $$
-y(t)=M^{-1}\bigl(H\,x(t)+P\,u_{\text{ext}}(t)\bigr),
+\mathbf{y}(t)=\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}_{\text{ext}}(t)\bigr),
 $$
 
 $$
-\dot{x}(t)=F\bigl(x(t),y(t),u_{\text{ext}}(t)\bigr).
+\dot{\mathbf{x}}(t)=F\bigl(\mathbf{x}(t),\mathbf{y}(t),\mathbf{u}_{\text{ext}}(t)\bigr).
 $$
 
-Eliminando o vetor algébrico $y(t)$, o problema fica na forma padrão
+Eliminando o vetor algébrico $\mathbf{y}(t)$, o problema fica na forma padrão
 
 $$
-\dot{x}(t)=f\bigl(t,x(t)\bigr).
+\dot{\mathbf{x}}(t)=f\bigl(t,\mathbf{x}(t)\bigr).
 $$
 
 Essa formulação é útil porque:
