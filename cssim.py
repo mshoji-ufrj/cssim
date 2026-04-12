@@ -193,7 +193,8 @@ def draw_graph(G):
 
 def tf_to_ss(num, den, verbose=False, param_values=None):
     """
-    Build the controllable canonical form for a proper transfer function G(s) = num(s)/den(s).
+    Build the controllable canonical form for a proper transfer function
+    G(s) = num(s)/den(s), returning the state-space matrices (A, B, C, D).
     Accepts strings with symbolic parameters. Replaces parameters with numeric values
     provided in param_values or registered globally in PARAM_VALUES.
     Notes:
@@ -207,16 +208,16 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
     s = sp.Symbol('s')
     param_values = (param_values or PARAM_VALUES)
 
-    def to_poly(p):
+    def to_poly(poly_expr):
         # Already a Poly instance
-        if isinstance(p, sp.Poly):
-            return p
+        if isinstance(poly_expr, sp.Poly):
+            return poly_expr
         # Expression
-        if isinstance(p, sp.Expr):
-            return sp.Poly(p, s)
+        if isinstance(poly_expr, sp.Expr):
+            return sp.Poly(poly_expr, s)
         # String -> symbolic parse
-        if isinstance(p, str):
-            txt = p.strip()
+        if isinstance(poly_expr, str):
+            txt = poly_expr.strip()
             if txt == "":
                 raise ValueError("Empty polynomial.")
             if 't' in txt:
@@ -235,50 +236,50 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
                 raise ValueError(f"Parameter(s) without value: {', '.join(str(u) for u in unknown)}")
             return sp.Poly(expr, s)
         # List/tuple of coefficients (assume highest-first)
-        if isinstance(p, (list, tuple)):
-            return sp.Poly(p, s)
+        if isinstance(poly_expr, (list, tuple)):
+            return sp.Poly(poly_expr, s)
         # Numeric
-        if isinstance(p, (int, float)):
-            return sp.Poly(float(p), s)
-        raise TypeError(f"Unsupported polynomial type: {type(p)}")
+        if isinstance(poly_expr, (int, float)):
+            return sp.Poly(float(poly_expr), s)
+        raise TypeError(f"Unsupported polynomial type: {type(poly_expr)}")
 
-    num_poly = to_poly(num)
-    den_poly = to_poly(den)
+    numerator_poly = to_poly(num)
+    denominator_poly = to_poly(den)
 
-    num_deg = num_poly.degree()
-    den_deg = den_poly.degree()
+    numerator_degree = numerator_poly.degree()
+    denominator_degree = denominator_poly.degree()
 
     # ---- accept only proper (or equal-degree) ----
-    if num_deg > den_deg:
+    if numerator_degree > denominator_degree:
         print("[Warning] Non-proper transfer function detected (deg(num) > deg(den)).")
         print("          This function only handles proper/equal-degree cases. No state-space built.")
         return None
 
-    if den_deg < 1:
+    if denominator_degree < 1:
         raise ValueError("Denominator must be at least first order.")
 
     # ---- coefficients (highest-first) ----
-    den_coeffs = [float(c) for c in den_poly.all_coeffs()]
-    num_coeffs = [float(c) for c in num_poly.all_coeffs()]
+    denominator_coeffs = [float(c) for c in denominator_poly.all_coeffs()]
+    numerator_coeffs = [float(c) for c in numerator_poly.all_coeffs()]
 
     # ---- normalize to monic denominator ----
-    den_leading_coeff = den_coeffs[0]
-    if abs(den_leading_coeff) == 0.0:
+    denominator_leading_coeff = denominator_coeffs[0]
+    if abs(denominator_leading_coeff) == 0.0:
         raise ValueError("Leading denominator coefficient must be nonzero.")
-    den_coeffs = [ai / den_leading_coeff for ai in den_coeffs]
-    num_coeffs = [bi / den_leading_coeff for bi in num_coeffs]
+    denominator_coeffs = [a_i / denominator_leading_coeff for a_i in denominator_coeffs]
+    numerator_coeffs = [b_i / denominator_leading_coeff for b_i in numerator_coeffs]
 
-    n = len(den_coeffs) - 1  # system order
+    n = len(denominator_coeffs) - 1  # system order
 
     # ---- pad numerator to length n+1 ----
-    if len(num_coeffs) < n + 1:
-        num_coeffs = [0.0] * (n + 1 - len(num_coeffs)) + num_coeffs
+    if len(numerator_coeffs) < n + 1:
+        numerator_coeffs = [0.0] * (n + 1 - len(numerator_coeffs)) + numerator_coeffs
 
     # Den (monic): [1, a1, a2, ..., an]
-    a1_to_n = den_coeffs[1:]              # length n
+    a1_to_n = denominator_coeffs[1:]              # length n
     # Num (aligned): [b0, b1, ..., bn]
-    b0 = num_coeffs[0]
-    b1_to_n = num_coeffs[1:]              # length n
+    b0 = numerator_coeffs[0]
+    b1_to_n = numerator_coeffs[1:]              # length n
 
     # ---- build A, B, C, D ----
     A = np.zeros((n, n))
@@ -297,8 +298,8 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
     if verbose:
         print("=== Controllable Canonical Form ===")
         print(f"Order n: {n}")
-        print(f"Den (monic): [1, a1, ..., an] = {den_coeffs}")
-        print(f"Num (aligned): [b0, b1, ..., bn] = {num_coeffs}")
+        print(f"Den (monic): [1, a1, ..., an] = {denominator_coeffs}")
+        print(f"Num (aligned): [b0, b1, ..., bn] = {numerator_coeffs}")
         print(f"A =\n{A}")
         print(f"B =\n{B}")
         print(f"C =\n{C}")
@@ -419,19 +420,20 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
     """
     Classical control-inspired algebraic solver builder.
     Models algebraic connections between blocks (gains, operations, passthrough) using symbolic substitution logic,
-    but implemented as a linear system M * y = H_matrix * x + input_terms.
+    but implemented as a linear system M * w = H * x + P * u.
+    Here, `P_u_terms` stores the sparse external-input contributions associated with P * u.
     This version supports arbitrary interconnection, including feedback loops.
     """
-    output_ids = [b["id"] for b in static_blocks] + [b["id"] for b in tf_blocks] + [b["id"] for b in pid_blocks]
-    output_index = {bid: i for i, bid in enumerate(output_ids)}
+    w_ids = [b["id"] for b in static_blocks] + [b["id"] for b in tf_blocks] + [b["id"] for b in pid_blocks]
+    w_index = {bid: i for i, bid in enumerate(w_ids)}
     n_states = total_states
 
-    M = np.eye(len(output_ids))  # Initialize with identity: y_i = y_i
-    H_matrix = np.zeros((len(output_ids), n_states))
-    input_map = {i: [] for i in range(len(output_ids))}
+    M = np.eye(len(w_ids))
+    H = np.zeros((len(w_ids), n_states))
+    P_u_terms = {i: [] for i in range(len(w_ids))}
 
     for block in static_blocks:
-        i = output_index[block["id"]]
+        i = w_index[block["id"]]
         inputs = block["in_ids"]
 
         if block["type"] == "gain":
@@ -449,10 +451,10 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
                     except Exception:
                         gain = 1.0
             src = inputs[0]
-            if src in output_index:
-                 M[i, output_index[src]] = -gain
+            if src in w_index:
+                M[i, w_index[src]] = -gain
             else:
-                 input_map[i].append((src, gain))
+                P_u_terms[i].append((src, gain))
 
         elif block["type"] == "operation":
             op1 = block["attrs"].get("data-operator-1", "+").strip()
@@ -464,53 +466,53 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
                 vert_input: 1.0 if op2 == "+" else -1.0,
             }
             for src, coeff in coeffs.items():
-                if src in output_index:
-                    M[i, output_index[src]] = -coeff
+                if src in w_index:
+                    M[i, w_index[src]] = -coeff
                 else:
-                    input_map[i].append((src, coeff))
+                    P_u_terms[i].append((src, coeff))
         else:
             for src in inputs:
-                if src in output_index:
-                    M[i, output_index[src]] = -1.0
+                if src in w_index:
+                    M[i, w_index[src]] = -1.0
                 else:
-                    input_map[i].append((src, 1.0))
+                    P_u_terms[i].append((src, 1.0))
 
     for tf in tf_blocks:
-        i = output_index[tf["id"]]
+        i = w_index[tf["id"]]
         src = tf["in_id"]
         D = float(tf["D"])
-        if src in output_index:
-            M[i, output_index[src]] = -D
+        if src in w_index:
+            M[i, w_index[src]] = -D
         else:
-            input_map[i].append((src, D))
-        H_matrix[i, tf["state_slice"]] = tf["C"].flatten()
+            P_u_terms[i].append((src, D))
+        H[i, tf["state_slice"]] = tf["C"].flatten()
 
     for pid in pid_blocks:
-        i = output_index[pid["id"]]
+        i = w_index[pid["id"]]
         src = pid["in_id"]
         kp = pid["Kp"]
 
-        if src in output_index:
-            M[i, output_index[src]] = M[i, output_index[src]] - kp
+        if src in w_index:
+            M[i, w_index[src]] = M[i, w_index[src]] - kp
         elif src is not None:
-            input_map[i].append((src, kp))
+            P_u_terms[i].append((src, kp))
 
         if pid["integral_slice"] is not None:
-            H_matrix[i, pid["integral_slice"]] = pid["Ki"]
+            H[i, pid["integral_slice"]] = pid["Ki"]
 
         derivative = pid["derivative"]
         if derivative is not None:
-            H_matrix[i, derivative["slice"]] = derivative["C"].flatten()
+            H[i, derivative["slice"]] = derivative["C"].flatten()
             D = derivative["D"]
             if abs(D) > 0:
-                if src in output_index:
-                    M[i, output_index[src]] = M[i, output_index[src]] - D
+                if src in w_index:
+                    M[i, w_index[src]] = M[i, w_index[src]] - D
                 elif src is not None:
-                    input_map[i].append((src, D))
+                    P_u_terms[i].append((src, D))
 
     M_inv = np.linalg.inv(M)
 
-    return output_ids, output_index, M_inv, input_map, H_matrix
+    return w_ids, w_index, M_inv, P_u_terms, H
 
 
 def generate_input_signal(data):
@@ -561,39 +563,39 @@ def generate_input_signal(data):
     return funcs
 
 
-def compute_rhs(input_signals, tf_blocks, pid_blocks, output_ids, output_index, M_inv, input_map, H_matrix):
+def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_terms, H):
     """
     Computes the right-hand side of the state-space model using algebraic resolution.
 
     Arguments:
-    - input_signals: dict of input signal functions u_i(t)
+    - u_signals: dict of input signal functions u_i(t)
     - tf_blocks: list of transfer function blocks
-    - output_ids: list of block IDs whose outputs must be solved
-    - output_index: mapping from block ID to row index in M
+    - w_ids: list of block IDs whose internal algebraic signals compose w(t)
+    - w_index: mapping from block ID to row index in M
     - M_inv: inverse of M matrix (algebraic solver)
-    - input_map: external input contributions to each equation
-    - H_matrix: matrix multiplying state vector x(t) in the algebraic subsystem
+    - P_u_terms: external input contributions associated with P * u
+    - H: matrix multiplying state vector x(t) in the algebraic subsystem
 
     Returns:
     - Function f(t, x) = dx/dt for numerical integration
     """
     def rhs(t, x):
-        # Step 1: Compute H_matrix * x(t)
-        rhs_vec = H_matrix.dot(x)
+        # Step 1: Compute H * x(t)
+        Hx_plus_Pu = H.dot(x)
 
-        # Step 2: Add input contributions: sum of alpha_i * u_i(t)
-        for i, input_terms in input_map.items():
-            for u_id, coeff in input_terms:
-                func = input_signals.get(u_id)
-                rhs_vec[i] += coeff * func(t) if func else 0.0
+        # Step 2: Add input contributions associated with P * u(t)
+        for i, u_terms in P_u_terms.items():
+            for u_id, coeff in u_terms:
+                func = u_signals.get(u_id)
+                Hx_plus_Pu[i] += coeff * func(t) if func else 0.0
 
-        # Step 3: Solve output = M⁻¹ ( H_matrix x + inputs )
-        output = M_inv.dot(rhs_vec)
+        # Step 3: Solve w = M⁻¹ (H x + P u)
+        w = M_inv.dot(Hx_plus_Pu)
 
         def eval_node(node_id):
-            if node_id in output_index:
-                return output[output_index[node_id]]
-            func = input_signals.get(node_id)
+            if node_id in w_index:
+                return w[w_index[node_id]]
+            func = u_signals.get(node_id)
             return func(t) if func else 0.0
 
         # Step 4: Compute dx/dt for each transfer function block
@@ -636,25 +638,25 @@ def run_simulation(data, step_size=0.001, simulation_time=10, param_values=None)
         data, G, param_values=param_values
     )
     input_signal_funcs = generate_input_signal(data)
-    output_ids, output_index, M_inv, input_map, H_matrix = build_solver(
+    w_ids, w_index, M_inv, P_u_terms, H = build_solver(
         input_blocks, static_blocks, tf_blocks, pid_blocks, total_states
     )
-    rhs = compute_rhs(input_signal_funcs, tf_blocks, pid_blocks, output_ids, output_index, M_inv, input_map, H_matrix)
-    x0 = np.zeros(H_matrix.shape[1])
+    rhs = compute_rhs(input_signal_funcs, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_terms, H)
+    x0 = np.zeros(H.shape[1])
     t_eval = np.arange(0, simulation_time, step_size)
     sol = solve_ivp(rhs, (0, simulation_time), x0, t_eval=t_eval)
     output_out = {output_id: np.zeros_like(sol.t) for output_id in output_blocks}
     out_sources = {output_id: list(G.predecessors(output_id))[0] for output_id in output_blocks}
     for k, t_k in enumerate(sol.t):
-        rhs_vec = H_matrix.dot(sol.y[:, k])
-        for i, entries in input_map.items():
+        Hx_plus_Pu = H.dot(sol.y[:, k])
+        for i, entries in P_u_terms.items():
             for input_id, coeff in entries:
                 func = input_signal_funcs.get(input_id)
-                rhs_vec[i] += coeff * func(t_k) if func else 0.0
-        output_k = M_inv.dot(rhs_vec)
+                Hx_plus_Pu[i] += coeff * func(t_k) if func else 0.0
+        w_k = M_inv.dot(Hx_plus_Pu)
         for output_id, src in out_sources.items():
-            if src in output_index:
-                output_out[output_id][k] = output_k[output_index[src]]
+            if src in w_index:
+                output_out[output_id][k] = w_k[w_index[src]]
             else:
                 func = input_signal_funcs.get(src)
                 output_out[output_id][k] = func(t_k) if func else 0.0

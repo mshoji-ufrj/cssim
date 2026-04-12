@@ -1,38 +1,75 @@
-# Montagem do modelo matemático no CSSIM
+# Montagem do modelo matemático no CSSIM com foco em espaço de estados
 
-Este documento revisa, de forma alinhada ao notebook [cssim_first_order.ipynb](cssim_first_order.ipynb), como o CSSIM transforma um diagrama de blocos em um modelo matemático simulável. O foco é o exemplo de sistema de primeira ordem definido em [diagrams/first_order_step.json](diagrams/first_order_step.json).
+Este documento reescreve, de forma mais didática, o fluxo apresentado no notebook [cssim_first_order.ipynb](cssim_first_order.ipynb). O objetivo é mostrar como o CSSIM transforma um diagrama de blocos em um modelo dinâmico em espaço de estados, pronto para simulação numérica.
+
+O exemplo usado ao longo do texto é o sistema de primeira ordem definido em [diagrams/first_order_step.json](diagrams/first_order_step.json).
 
 ---
 
-## Visão geral
+## 1. Ideia central: por que usar espaço de estados?
 
-O CSSIM transforma um diagrama de blocos em um problema dinâmico da forma
+Em teoria de controle, um sistema dinâmico pode ser descrito de duas formas muito comuns:
+
+- por **função de transferência**, no domínio de Laplace;
+- por **equações de estado**, no domínio do tempo.
+
+Na forma de espaço de estados, descrevemos o sistema por meio de variáveis internas chamadas **estados**. Essas variáveis guardam a “memória” do sistema.
+
+A forma padrão é
 
 $$
-\dot{\mathbf{x}}(t) = f\bigl(t, \mathbf{x}(t)\bigr),
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{u}(t),
+$$
+
+$$
+\mathbf{y}(t)=\mathbf{C}\,\mathbf{x}(t)+\mathbf{D}\,\mathbf{u}(t),
 $$
 
 em que:
 
-- $\mathbf{x}(t)$ é o vetor global de estados internos dos blocos dinâmicos;
-- os blocos algébricos são reunidos em um sistema linear;
-- as entradas externas são convertidas em funções do tempo;
-- as saídas são reconstruídas a partir das interconexões do diagrama.
+- $\mathbf{x}(t)$ é o vetor de estados;
+- $\mathbf{u}(t)$ é o vetor de entradas;
+- $\mathbf{y}(t)$ é o vetor de saídas;
+- $\mathbf{A},\mathbf{B},\mathbf{C},\mathbf{D}$ são matrizes do modelo.
 
-No notebook, o fluxo é apresentado em 10 etapas:
+Ao longo deste texto, para manter a simbologia tradicional de espaço de estados, a letra $\mathbf{y}(t)$ será reservada para a **saída do sistema**. Quando for necessário representar sinais internos algébricos da interconexão, usaremos outra notação.
 
-1. leitura do diagrama em JSON;
-2. criação do grafo do diagrama;
-3. resolução dos parâmetros simbólicos;
-4. categorização dos blocos;
-5. conversão da função de transferência para espaço de estados;
-6. montagem do modelo matemático do sistema;
-7. geração dos sinais de entrada;
-8. execução da simulação;
-9. visualização dos resultados;
-10. incorporação ao Jupyter Notebook.
+Da mesma forma, a letra $G$ será reservada para **função de transferência**, como em $G(s)$. Por isso, as matrizes auxiliares da montagem algébrica usarão outras letras.
 
-As funções principais envolvidas nesse fluxo são:
+Essa forma é especialmente útil no CSSIM porque o simulador precisa trabalhar no tempo, calculando a derivada dos estados a cada instante. Em outras palavras, o integrador numérico não simula diretamente uma função de transferência; ele simula uma EDO do tipo
+
+$$
+\dot{\mathbf{x}}(t)=f\bigl(t,\mathbf{x}(t)\bigr).
+$$
+
+Portanto, a tarefa principal do CSSIM é converter o diagrama de blocos em uma descrição equivalente nessa forma.
+
+---
+
+## 2. O que o CSSIM faz, em termos conceituais
+
+Ao ler um diagrama, o CSSIM separa os blocos em dois grupos principais:
+
+1. **blocos dinâmicos**, que introduzem estados;
+2. **blocos algébricos**, que apenas combinam sinais instantaneamente.
+
+Isso leva naturalmente a duas camadas matemáticas:
+
+- uma camada **algébrica**, que resolve sinais internos como somas, ganhos e realimentações;
+- uma camada **dinâmica**, que calcula $\dot{\mathbf{x}}(t)$ a partir desses sinais.
+
+De forma resumida, o CSSIM:
+
+1. lê o JSON do diagrama;
+2. constrói o grafo de interconexões;
+3. resolve parâmetros simbólicos;
+4. identifica quais blocos têm estado;
+5. converte blocos dinâmicos para matrizes de espaço de estados;
+6. monta o acoplamento algébrico entre os sinais;
+7. produz a função $f(t,\mathbf{x})$ usada pelo integrador;
+8. executa a simulação e reconstrói as saídas.
+
+As principais funções envolvidas nesse processo são:
 
 - `load_json(...)`
 - `build_graph(...)`
@@ -49,62 +86,20 @@ As funções principais envolvidas nesse fluxo são:
 
 ---
 
-## Contexto comum do notebook
+## 3. Contexto do exemplo de primeira ordem
 
-Antes das 10 etapas, o notebook cria um contexto comum reutilizado ao longo da análise:
+Antes de iniciar o fluxo, o notebook fixa o contexto do problema:
 
 - define o símbolo de Laplace $s$;
 - define `diagram_path = "diagrams/first_order_step.json"`;
-- fixa $T = 1$;
+- assume $T=1$;
 - monta `param_values = {"T": 1}`;
 - registra os parâmetros com `set_parameters(param_values)`;
-- lê o diagrama com `data = load_json(diagram_path)`.
+- carrega o diagrama com `data = load_json(diagram_path)`.
 
-Esse preparo é importante porque, nas etapas seguintes, o notebook passa a analisar o mesmo diagrama sempre com a mesma parametrização.
-
-No exemplo estudado, a malha fechada é descrita por
+Do ponto de vista de controle clássico, a malha fechada estudada é
 
 $$
-E(s)=R(s)-C(s),
-\qquad
-G(s)=\frac{1}{Ts},
-\qquad
-\frac{C(s)}{R(s)}=\frac{1}{Ts+1}.
-$$
-
----
-
-## Etapa 1 — Leitura do diagrama em JSON com `load_json(...)`
-
-A função `load_json(path)` lê o arquivo JSON e devolve uma estrutura com, no mínimo:
-
-- `blocks`: lista de blocos;
-- `connections`: lista de conexões;
-- `sim_time`: tempo de simulação;
-- `step_size`: passo de integração.
-
-No notebook, a chamada é feita com:
-
-```python
-data = load_json("diagrams/first_order_step.json")
-```
-
-O arquivo lido contém:
-
-- 4 blocos;
-- 5 conexões;
-- um bloco de entrada do tipo `step`;
-- um bloco de operação com sinais `+` e `-`;
-- um bloco de função de transferência com numerador `1` e denominador `T*s`;
-- um bloco de saída.
-
-Matematicamente, essa etapa ainda não resolve a dinâmica. Ela apenas identifica a estrutura que depois será convertida em equações.
-
-Para o exemplo, o notebook explicita as relações:
-
-$$
-R(s)=\frac{1}{s},
-\qquad
 E(s)=R(s)-C(s),
 \qquad
 G(s)=\frac{1}{Ts},
@@ -112,90 +107,89 @@ G(s)=\frac{1}{Ts},
 C(s)=G(s)E(s).
 $$
 
----
-
-## Etapa 2 — Criação do grafo com `build_graph(...)`
-
-A função `build_graph(data)` constrói um grafo direcionado $G$, no qual:
-
-- cada nó representa um bloco;
-- cada aresta representa fluxo de sinal;
-- conectores intermediários são colapsados para preservar a relação bloco-a-bloco.
-
-No exemplo do notebook, os nós identificados são:
-
-- `Block0`: entrada;
-- `Block1`: operação;
-- `Block2`: função de transferência;
-- `Block3`: saída.
-
-As arestas mostradas pelo notebook são:
+Ao fechar a malha, obtém-se
 
 $$
-\text{Block0} \to \text{Block1},
-\qquad
-\text{Block1} \to \text{Block2},
-\qquad
-\text{Block2} \to \text{Block3},
-\qquad
-\text{Block2} \to \text{Block1}.
+\frac{C(s)}{R(s)}=\frac{1}{Ts+1}.
 $$
 
-Logo, a realimentação negativa fica explícita no grafo: a saída do bloco dinâmico retorna ao somador.
-
-Essa estrutura computacional é a base para determinar:
-
-- predecessores de cada bloco;
-- origem dos sinais de entrada;
-- realimentações;
-- ordem de montagem das equações algébricas e diferenciais.
+O papel do CSSIM é chegar a esse mesmo comportamento, mas pelo caminho do espaço de estados.
 
 ---
 
-## Etapa 3 — Resolução dos parâmetros com `set_parameters(...)` e `resolve_param(...)`
+## 4. As 10 etapas do fluxo no CSSIM
 
-O CSSIM permite que parâmetros do diagrama sejam escritos simbolicamente, por exemplo:
+### Etapa 1 — Leitura do diagrama com `load_json(...)`
+
+A função `load_json(path)` lê o arquivo JSON e devolve a estrutura do diagrama, contendo ao menos:
+
+- `blocks`;
+- `connections`;
+- `sim_time`;
+- `step_size`.
+
+No exemplo, o arquivo descreve:
+
+- um bloco de entrada do tipo degrau;
+- um somador com sinais `+` e `-`;
+- um bloco dinâmico com função de transferência $\frac{1}{Ts}$;
+- um bloco de saída.
+
+Nesta etapa, ainda não existe equação de estado. O que existe é apenas a **topologia** do sistema.
+
+---
+
+### Etapa 2 — Construção do grafo com `build_graph(...)`
+
+A função `build_graph(data)` transforma o diagrama em um grafo direcionado. Isso é importante porque o simulador precisa saber:
+
+- de onde vem cada sinal;
+- para onde cada sinal vai;
+- quais blocos alimentam outros blocos;
+- onde existe realimentação.
+
+No exemplo, o grafo identifica essencialmente o seguinte fluxo:
+
+$$
+	\text{entrada} \to \text{somador} \to \text{bloco dinâmico} \to \text{saída},
+$$
+
+com a realimentação da saída voltando ao somador.
+
+Em termos conceituais, essa etapa organiza o diagrama para que o CSSIM consiga escrever as equações corretamente.
+
+---
+
+### Etapa 3 — Resolução dos parâmetros com `set_parameters(...)` e `resolve_param(...)`
+
+Nos diagramas do CSSIM, parâmetros podem aparecer como expressões simbólicas, por exemplo:
 
 - `T`
 - `K`
 - `2*zeta*wn`
 - `wn**2`
 
-No notebook, o parâmetro relevante é a constante de tempo $T$, definida por
+No caso do notebook, o parâmetro relevante é $T$, com valor
 
 $$
-T = 1.
+T=1.
 $$
 
-A função `set_parameters(...)` registra esse valor, e `resolve_param(...)` substitui a expressão simbólica pelo valor numérico correspondente.
+Ao resolver os parâmetros, o bloco dinâmico deixa de ser interpretado como algo simbólico e passa a ter coeficientes numéricos. Isso é indispensável porque a simulação exige matrizes numéricas.
 
-No exemplo:
-
-$$
-\texttt{resolve\_param("T")} = 1.0.
-$$
-
-Assim, o denominador simbólico do bloco
+No exemplo,
 
 $$
-T s
+\frac{1}{Ts}\quad \longrightarrow \quad \frac{1}{1\cdot s}=\frac{1}{s}.
 $$
-
-passa, numericamente, a ser interpretado como
-
-$$
-1.0\,s.
-$$
-
-Essa etapa é necessária porque a conversão para espaço de estados exige coeficientes numéricos.
 
 ---
 
-## Etapa 4 — Categorização dos blocos com `categorize_blocks(...)`
+### Etapa 4 — Categorização dos blocos com `categorize_blocks(...)`
 
-A função `categorize_blocks(data, G, param_values)` percorre os blocos e os separa em grupos funcionais.
+Nem todo bloco gera estado. Por isso, o CSSIM classifica os blocos por função.
 
-No notebook, a saída dessa etapa é:
+No notebook, a categorização produz:
 
 - `input_blocks = ['Block0']`
 - `tf_blocks = ['Block2']`
@@ -204,66 +198,68 @@ No notebook, a saída dessa etapa é:
 - `output_blocks = ['Block3']`
 - `total_states = 1`
 
-Isso significa que:
+Essa informação é crucial para a teoria de espaço de estados:
 
-- o bloco de entrada representa a referência $r(t)$;
-- o bloco estático representa o somador do erro;
-- o bloco dinâmico representa $G(s)=\frac{1}{Ts}$;
-- o sistema total possui apenas um estado.
+- blocos de entrada definem $\mathbf{u}(t)$;
+- blocos dinâmicos contribuem para $\mathbf{x}(t)$;
+- blocos algébricos ajudam a montar relações instantâneas entre sinais;
+- blocos de saída definem quais sinais devem ser observados ao final.
 
-De forma geral, essa etapa separa:
-
-- blocos de entrada;
-- blocos de função de transferência;
-- blocos algébricos, como somadores e ganhos;
-- blocos PID;
-- blocos de saída.
-
-Depois disso, o CSSIM concatena todos os estados dos blocos dinâmicos em um vetor global
+No exemplo existe apenas **um estado**, então o vetor global é simplesmente
 
 $$
-\mathbf{x}(t) = \bigl(x_1(t), x_2(t), \ldots, x_n(t)\bigr)^\top.
+\mathbf{x}(t)=x(t).
 $$
-
-No exemplo do notebook, esse vetor tem dimensão 1.
 
 ---
 
-## Etapa 5 — Conversão da função de transferência com `tf_to_ss(...)`
+### Etapa 5 — Da função de transferência para espaço de estados com `tf_to_ss(...)`
 
-A função `tf_to_ss(num, den, param_values=None)` recebe o numerador e o denominador de um bloco dinâmico e produz uma realização em espaço de estados.
+Aqui aparece a ponte entre controle clássico e controle moderno.
 
-Para um bloco genérico
-
-$$
-G(s)=\frac{N(s)}{D(s)},
-$$
-
-o CSSIM constrói matrizes $(\mathbf{A},\mathbf{B},\mathbf{C},\mathbf{D})$ tais que
+O bloco dinâmico do exemplo é
 
 $$
-G(s)=\mathbf{C}(s\mathbf{I}-\mathbf{A})^{-1}\mathbf{B} + \mathbf{D}.
+G(s)=\frac{1}{Ts}.
 $$
 
-No notebook, a chamada é feita com:
+A função `tf_to_ss(num, den, param_values=None)` converte essa função de transferência em uma realização no formato
+
+$$
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,u(t),
+$$
+
+$$
+y(t)=\mathbf{C}\,\mathbf{x}(t)+\mathbf{D}\,u(t).
+$$
+
+No notebook, a chamada é:
 
 ```python
 A_tf, B_tf, C_tf, D_tf = tf_to_ss("1", "T*s", param_values={"T": 1})
 ```
 
-Como $T=1$, o resultado numérico mostrado é:
+Com $T=1$, o resultado mostrado é
 
 $$
-\mathbf{A} = [0],
+\mathbf{A}=[0],
 \qquad
-\mathbf{B} = [1],
+\mathbf{B}=[1],
 \qquad
-\mathbf{C} = [1],
+\mathbf{C}=[1],
 \qquad
-\mathbf{D} = 0.
+\mathbf{D}=0.
 $$
 
-Em forma simbólica, antes da substituição $T=1$, a interpretação é
+Isso significa que, para esse bloco,
+
+$$
+\dot{x}(t)=u(t),
+\qquad
+y(t)=x(t).
+$$
+
+Se mantivermos $T$ explícito, a interpretação é
 
 $$
 \dot{x}(t)=e(t),
@@ -271,278 +267,349 @@ $$
 c(t)=\frac{1}{T}x(t).
 $$
 
-Portanto, o estado $x(t)$ funciona como a integral do erro, e a saída é uma versão escalada desse estado.
+Ou seja:
+
+- o estado é a integral do sinal de entrada do bloco;
+- a saída do bloco é obtida a partir do estado.
+
+Esse é o ponto mais importante da teoria de espaço de estados no exemplo: o integrador $\frac{1}{Ts}$ deixa de ser apenas um bloco em Laplace e passa a ser representado por uma variável de estado com dinâmica própria.
 
 ---
 
-## Etapa 6 — Montagem do modelo matemático com `build_solver(...)` e `compute_rhs(...)`
+### Etapa 6 — Montagem do modelo completo com `build_solver(...)` e `compute_rhs(...)`
 
-Essa é a etapa central da formulação do sistema.
+Esta é a etapa central.
 
-Antes de olhar o caso particular do notebook, vale entender a ideia geral do que o CSSIM faz nessa etapa.
+Depois que cada bloco dinâmico já foi convertido para espaço de estados, ainda falta combinar todos os blocos do diagrama em um único modelo global. O CSSIM faz isso em duas partes.
 
-Quando o diagrama possui blocos dinâmicos e blocos algébricos interligados, o problema natural não aparece imediatamente como uma única EDO explícita. Primeiro, o CSSIM separa as variáveis em dois grupos:
+#### Parte algébrica: resolver os sinais internos
 
-- **estados dinâmicos** $\mathbf{x}(t)$, associados aos blocos que têm memória, como funções de transferência e controladores com integradores;
-- **saídas algébricas internas** $\mathbf{y}(t)$, associadas aos sinais produzidos por somadores, ganhos, saídas de blocos dinâmicos e outros blocos que dependem instantaneamente de entradas e estados.
+Blocos como somadores, ganhos e conexões não criam novos estados. Eles apenas impõem relações instantâneas entre sinais.
 
-Também existe o conjunto das **entradas externas** $\mathbf{u}(t)$, geradas pelos blocos de entrada do diagrama.
-
-De forma genérica, o CSSIM monta primeiro um sistema algébrico do tipo
+O CSSIM reúne essas relações em um sistema do tipo
 
 $$
-\mathbf{M}\,\mathbf{y}(t)=\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}(t),
+\mathbf{M}\,\mathbf{w}(t)=\mathbf{H}\,\mathbf{x}(t)+\mathbf{P}\,\mathbf{u}(t),
 $$
 
 em que:
 
-- $\mathbf{y}(t)$ reúne as saídas internas dos blocos relevantes do diagrama;
-- $\mathbf{x}(t)$ é o vetor global de estados;
-- $\mathbf{u}(t)$ reúne os sinais externos aplicados ao diagrama;
-- $\mathbf{M}$ descreve como as saídas algébricas dependem umas das outras;
-- $\mathbf{H}$ projeta a contribuição dos estados internos sobre as variáveis algébricas;
-- $\mathbf{u}(t)$ representa diretamente a contribuição das entradas externas na forma compacta adotada aqui.
+- $\mathbf{x}(t)$ é o vetor de estados globais;
+- $\mathbf{u}(t)$ é o vetor de entradas externas;
+- $\mathbf{w}(t)$ reúne sinais internos do diagrama;
+- $\mathbf{M}$ descreve o acoplamento algébrico entre esses sinais;
+- $\mathbf{H}$ mostra como os estados influenciam as equações algébricas;
+- $\mathbf{P}$ mostra como as entradas externas aparecem nessas equações algébricas.
 
-Se $\mathbf{M}$ é inversível, então o sistema algébrico pode ser resolvido como
-
-$$
-\mathbf{y}(t)=\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}(t)\bigr).
-$$
-
-Em seguida, o CSSIM monta a parte dinâmica. De forma genérica, a derivada dos estados pode ser escrita como
+Se $\mathbf{M}$ é inversível, então
 
 $$
-\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{y}(t)+\mathbf{E}\,\mathbf{u}(t).
+\mathbf{w}(t)=\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{P}\,\mathbf{u}(t)\bigr).
 $$
 
-Essa equação diz que a evolução dos estados pode depender:
+Em linguagem simples: dado o estado atual e a entrada atual, o CSSIM calcula instantaneamente todos os sinais internos relevantes.
 
-- do próprio estado atual $\mathbf{x}(t)$;
-- dos sinais algébricos internos $\mathbf{y}(t)$;
-- das entradas externas $\mathbf{u}(t)$.
+#### Parte dinâmica: calcular a derivada dos estados
 
-Substituindo a expressão de $\mathbf{y}(t)$, o sistema fica totalmente em função de $\mathbf{x}(t)$ e de $\mathbf{u}(t)$:
+Depois de conhecer os sinais internos, o CSSIM calcula a dinâmica global na forma
 
 $$
-\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}(t)\bigr)+\mathbf{E}\,\mathbf{u}(t).
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}_w\,\mathbf{w}(t)+\mathbf{B}_u\,\mathbf{u}(t).
 $$
 
-Agrupando os termos,
+Essa equação vem diretamente da teoria de espaço de estados aplicada ao conjunto de blocos dinâmicos do diagrama.
+
+Para entender sua origem, vale começar pelo caso de **um único bloco dinâmico**. Sim: essas são justamente as equações usuais de espaço de estados para um bloco. Para manter a notação tradicional, podemos escrevê-las como
 
 $$
-\dot{\mathbf{x}}(t)=\bigl(\mathbf{A}+\mathbf{B}\,\mathbf{M}^{-1}\mathbf{H}\bigr)\mathbf{x}(t)+\bigl(\mathbf{B}\,\mathbf{M}^{-1}+\mathbf{E}\bigr)\mathbf{u}(t).
-$$
-
-Esse é o ponto principal da etapa 6: o CSSIM pega uma interconexão de blocos, resolve as dependências algébricas internas e a transforma em uma EDO explícita utilizável pelo integrador numérico.
-
-### Sistema algébrico montado por `build_solver(...)`
-
-A função
-
-```python
-build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_states)
-```
-
-produz, no notebook:
-
-- `output_ids = ['Block1', 'Block2']`
-- `output_index = {'Block1': 0, 'Block2': 1}`
-- `M_inv = [[1, -1], [0, 1]]`
-- `input_map = {0: [('Block0', 1.0)], 1: []}`
-- `H_matrix = [[0], [1]]`
-
-Interpretando esses objetos com mais calma:
-
-- `output_ids` indica quais sinais internos foram escolhidos para compor o vetor algébrico $\mathbf{y}(t)$;
-- `output_index` apenas associa cada bloco à sua posição dentro desse vetor;
-- `M_inv` é a inversa da matriz que resolve o acoplamento algébrico entre esses sinais;
-- `input_map` informa quais entradas externas contribuem diretamente para cada equação algébrica;
-- `H_matrix` informa como os estados internos contribuem para essas mesmas equações e corresponde, no código, à matriz $\mathbf{H}$ da formulação matemática.
-
-Como `Block1` é o somador e `Block2` é o bloco dinâmico, o vetor algébrico pode ser escrito como
-
-$$
-\mathbf{y}(t)=\bigl(e(t), c(t)\bigr)^\top.
-$$
-
-Isso é importante: nessa etapa o CSSIM ainda não está integrando nada. Ele está apenas respondendo à pergunta:
-
-> dado um estado atual $\mathbf{x}(t)$ e um valor atual da entrada $r(t)$, quais são instantaneamente os sinais internos do diagrama?
-
-No exemplo, as equações algébricas são
-
-$$
-e(t)=r(t)-c(t),
+\dot{\mathbf{x}}_i(t)=\mathbf{A}_i\,\mathbf{x}_i(t)+\mathbf{B}_i\,\mathbf{u}_i(t),
 $$
 
 $$
-c(t)=\frac{1}{T}x(t).
+\mathbf{y}_i(t)=\mathbf{C}_i\,\mathbf{x}_i(t)+\mathbf{D}_i\,\mathbf{u}_i(t),
 $$
 
-Em forma compacta, isso pode ser escrito como
+em que:
+
+- $\mathbf{x}_i(t)$ é o vetor de estados internos do bloco $i$;
+- $\mathbf{u}_i(t)$ é a entrada desse bloco;
+- $\mathbf{y}_i(t)$ é a saída desse bloco;
+- $\mathbf{A}_i,\mathbf{B}_i,\mathbf{C}_i,\mathbf{D}_i$ são as matrizes da realização em espaço de estados daquele bloco.
+
+Essas são as formas tradicionais da teoria de espaço de estados: a primeira equação descreve a dinâmica interna do bloco, e a segunda descreve como a saída do bloco é obtida a partir dos estados e da entrada.
+
+Quando o diagrama possui vários blocos dinâmicos, o CSSIM empilha todos esses estados em um único vetor global:
 
 $$
-\mathbf{M}\,\mathbf{y}(t)=\mathbf{b}(t),
+\mathbf{x}(t)=\begin{pmatrix}
+\mathbf{x}_1(t) \\
+\mathbf{x}_2(t) \\
+\vdots \\
+\mathbf{x}_n(t)
+\end{pmatrix}.
 $$
 
-com
+Ao fazer isso, todas as equações diferenciais locais são reunidas em uma única equação global. É daí que surge a expressão
 
 $$
-\mathbf{M} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix},
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}_w\,\mathbf{w}(t)+\mathbf{B}_u\,\mathbf{u}(t).
 $$
 
+Ela diz que a derivada do vetor de estados globais pode depender de três tipos de contribuição:
+
+1. do próprio estado atual $\mathbf{x}(t)$;
+2. dos sinais internos do diagrama, reunidos em $\mathbf{w}(t)$;
+3. das entradas externas do sistema, reunidas em $\mathbf{u}(t)$.
+
+Os elementos da equação são:
+
+- $\dot{\mathbf{x}}(t)$: vetor derivada dos estados, isto é, a taxa de variação de cada estado do sistema;
+- $\mathbf{x}(t)$: vetor global de estados, formado pela concatenação dos estados de todos os blocos dinâmicos;
+- $\mathbf{w}(t)$: vetor de sinais internos já resolvidos pela parte algébrica, como saídas de somadores, saídas intermediárias e sinais de realimentação;
+- $\mathbf{u}(t)$: vetor de entradas externas, como degrau, rampa, senoide ou qualquer sinal aplicado a partir dos blocos de entrada;
+- $\mathbf{A}$: matriz que descreve como os próprios estados influenciam suas derivadas;
+- $\mathbf{B}_w$: matriz que descreve como os sinais internos do diagrama influenciam a dinâmica dos estados;
+- $\mathbf{B}_u$: matriz que descreve como as entradas externas atuam diretamente sobre a dinâmica global.
+
+Em termos físicos, pode-se ler a equação assim:
+
+> a evolução do sistema em cada instante depende da memória acumulada nos estados, dos sinais que circulam internamente na malha e dos sinais externos aplicados ao sistema.
+
+No CSSIM, a presença de $\mathbf{w}(t)$ é importante porque a entrada de um bloco dinâmico nem sempre vem diretamente de uma entrada externa. Muitas vezes ela vem da saída de um somador, de um ganho ou de uma realimentação. Por isso, antes de calcular $\dot{\mathbf{x}}(t)$, o simulador precisa primeiro resolver essas relações algébricas internas.
+
+Em alguns textos de teoria de controle, aparece apenas a forma mais tradicional
+
 $$
-\mathbf{y}(t)=\bigl(e(t), c(t)\bigr)^\top,
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{u}(t).
+$$
+
+Aqui o CSSIM usa uma forma um pouco mais geral porque separa explicitamente:
+
+- a influência das entradas externas $\mathbf{u}(t)$;
+- a influência dos sinais internos $\mathbf{w}(t)$, que surgem da interconexão entre blocos.
+
+Depois que $\mathbf{w}(t)$ é substituído pela solução algébrica da malha, a equação volta para uma forma explícita apenas em função de $\mathbf{x}(t)$ e $\mathbf{u}(t)$.
+
+Substituindo a expressão de $\mathbf{w}(t)$, o resultado fica totalmente em função de $\mathbf{x}(t)$ e $\mathbf{u}(t)$:
+
+$$
+\dot{\mathbf{x}}(t)=\bigl(\mathbf{A}+\mathbf{B}_w\,\mathbf{M}^{-1}\mathbf{H}\bigr)\mathbf{x}(t)+\bigl(\mathbf{B}_w\,\mathbf{M}^{-1}\mathbf{P}+\mathbf{B}_u\bigr)\mathbf{u}(t).
+$$
+
+Para manter a simbologia mais usual de espaço de estados, podemos simplesmente redefinir as matrizes equivalentes do sistema completo como
+
+$$
+\mathbf{A}\coloneqq \mathbf{A}+\mathbf{B}_w\,\mathbf{M}^{-1}\mathbf{H},
 \qquad
-\mathbf{b}(t)=\bigl(r(t), \tfrac{1}{T}x(t)\bigr)^\top.
+\mathbf{B}\coloneqq \mathbf{B}_w\,\mathbf{M}^{-1}\mathbf{P}+\mathbf{B}_u,
 $$
 
-Se o preview continuar sem renderizar a matriz $\mathbf{M}$, a forma por componentes é exatamente:
+isto é, daqui em diante $\mathbf{A}$ e $\mathbf{B}$ passam a representar as matrizes efetivas do sistema já com a interconexão algébrica incorporada. Com essa convenção, o modelo volta à forma clássica
 
 $$
-e(t)+c(t)=r(t),
-\qquad
-c(t)=\frac{1}{T}x(t).
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{u}(t).
 $$
 
-Como o notebook já fornece $\mathbf{M}^{-1}$, a solução pode ser escrita diretamente como
+Se desejado, a saída externa do sistema pode então ser escrita na forma usual
 
 $$
-\mathbf{y}(t)=\mathbf{M}^{-1}\bigl(\mathbf{C}_{\text{alg}}\mathbf{x}(t)+\mathbf{u}_{\text{ext}}(t)\bigr),
+\mathbf{y}(t)=\mathbf{C}\,\mathbf{x}(t)+\mathbf{D}\,\mathbf{u}(t).
 $$
 
-com
+É essa função que `compute_rhs(...)` entrega ao integrador numérico.
+
+---
+
+#### Aplicação da etapa 6 ao exemplo de primeira ordem
+
+Nesta etapa, vale retomar a formulação teórica apresentada antes e identificar, termo a termo, o que ela se torna no exemplo.
+
+De forma geral, o CSSIM separa o problema em duas partes:
 
 $$
-\mathbf{M}^{-1} = \begin{pmatrix} 1 & -1 \\ 0 & 1 \end{pmatrix}.
+\mathbf{M}\,\mathbf{w}(t)=\mathbf{H}\,\mathbf{x}(t)+\mathbf{P}\,\mathbf{u}(t)
 $$
 
-Em outras palavras, o `build_solver(...)` monta a parte de **fechamento instantâneo da malha**. Ele resolve o somador, a realimentação e as relações diretas entre sinais sem ainda integrar a dinâmica.
-
-### Dinâmica montada por `compute_rhs(...)`
-
-A função `compute_rhs(...)` constrói a função do lado direito da EDO global,
+e
 
 $$
-\dot{\mathbf{x}}(t)=f(t,\mathbf{x}).
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}_w\,\mathbf{w}(t)+\mathbf{B}_u\,\mathbf{u}(t).
 $$
 
-Agora aparece a segunda metade da etapa 6. Depois de o sistema algébrico informar quanto vale cada sinal interno, o CSSIM usa essas informações para calcular a derivada dos estados. Em linguagem prática:
+No sistema de primeira ordem do notebook, essas grandezas assumem uma forma muito simples.
 
-1. avalia a entrada externa no instante $t$;
-2. usa $\mathbf{x}(t)$ e a entrada para resolver o sistema algébrico;
-3. obtém os sinais internos, como erro, saída de somadores e saídas de blocos;
-4. usa esses sinais para calcular $\dot{\mathbf{x}}(t)$.
-
-Portanto, `compute_rhs(...)` encapsula exatamente a função que o integrador numérico precisa consultar repetidamente.
-
-### Aplicação genérica da etapa 6
-
-Juntando as duas partes, a etapa 6 pode ser resumida assim:
-
-1. o diagrama é convertido em relações algébricas entre sinais internos;
-2. essas relações são organizadas na forma matricial $\mathbf{M}\,\mathbf{y} = \mathbf{H}\,\mathbf{x} + \mathbf{u}$;
-3. o vetor algébrico é resolvido como $\mathbf{y} = \mathbf{M}^{-1}(\mathbf{H}\,\mathbf{x} + \mathbf{u})$;
-4. a dinâmica dos blocos com estado é escrita como $\dot{\mathbf{x}} = \mathbf{A}\,\mathbf{x} + \mathbf{B}\,\mathbf{y} + \mathbf{E}\,\mathbf{u}$;
-5. a substituição de $\mathbf{y}$ produz uma única EDO explícita.
-
-Isso significa que o CSSIM transforma um diagrama de blocos com realimentações em um modelo matemático pronto para simulação, sem que o usuário precise montar manualmente as equações do sistema inteiro.
-
-### Aplicação ao exemplo de primeira ordem
-
-No sistema do notebook, existe apenas um estado interno, associado ao bloco de função de transferência $G(s)=\frac{1}{Ts}$. Portanto,
+Primeiro, o vetor de estados tem dimensão 1, pois existe apenas um bloco dinâmico com um único estado interno:
 
 $$
-\mathbf{x}(t) \in \mathbb{R}.
+\mathbf{x}(t)=x(t).
 $$
 
-O vetor algébrico escolhido pelo CSSIM reúne dois sinais:
-
-$$
-\mathbf{y}(t)=\bigl(e(t),c(t)\bigr)^\top,
-$$
-
-onde:
-
-- $e(t)$ é a saída do somador, isto é, o erro;
-- $c(t)$ é a saída do bloco dinâmico, isto é, a saída da planta em malha fechada.
-
-Como a entrada externa é a referência, podemos escrever
+A entrada externa é apenas a referência do sistema, portanto
 
 $$
 \mathbf{u}(t)=r(t).
 $$
 
-As relações estruturais do diagrama são:
+Já os sinais internos relevantes da interconexão são escolhidos como
 
 $$
-e(t)=r(t)-c(t),
+\mathbf{w}(t)=\begin{pmatrix} e(t) \\ c(t) \end{pmatrix},
 $$
+
+em que:
+
+- $e(t)$ é o erro na saída do somador;
+- $c(t)$ é a saída do bloco dinâmico, isto é, a saída interna da planta.
+
+Com essa escolha, a equação algébrica geral
+
+$$
+\mathbf{M}\,\mathbf{w}(t)=\mathbf{H}\,\mathbf{x}(t)+\mathbf{P}\,\mathbf{u}(t)
+$$
+
+passa a representar exatamente as duas relações literais do diagrama:
+
+$$
+e(t)=r(t)-c(t)
+$$
+
+e
 
 $$
 c(t)=\frac{1}{T}x(t).
 $$
 
-A primeira equação vem do somador com sinais `+` e `-`; a segunda vem da realização em espaço de estados do integrador $\frac{1}{Ts}$.
-
-Escrevendo essas relações em forma de sistema,
+Se escrevermos a primeira equação na forma $e(t)+c(t)=r(t)$, o sistema pode ser colocado matricialmente. Para evitar problemas de renderização, é mais seguro definir cada objeto separadamente:
 
 $$
-\begin{aligned}
-e(t) + c(t) &= r(t), \\
-c(t) &= \frac{1}{T}x(t).
-\end{aligned}
+\mathbf{w}(t)=\begin{bmatrix} e(t) \\ c(t) \end{bmatrix}
 $$
 
-Ou seja,
-
 $$
-\mathbf{M}\,\mathbf{y}(t)=\mathbf{H}\,\mathbf{x}(t)+r(t).
+\mathbf{M}=\begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}
 $$
 
-Se quisermos apenas identificar as matrizes envolvidas, então elas são
+$$
+\mathbf{H}=\begin{bmatrix} 0 \\ \frac{1}{T} \end{bmatrix}
+$$
 
 $$
-\mathbf{M} = \begin{pmatrix} 1 & 1 \\ 0 & 1 \end{pmatrix},
+\mathbf{P}=\begin{bmatrix} 1 \\ 0 \end{bmatrix}
+$$
+
+Assim, a equação algébrica do exemplo fica simplesmente
+
+$$
+\mathbf{M}\,\mathbf{w}(t)=\mathbf{H}\,x(t)+\mathbf{P}\,r(t).
+$$
+
+Escrevendo essa igualdade por componentes, obtemos exatamente
+
+$$
+e(t)+c(t)=r(t)
+$$
+
+e
+
+$$
+c(t)=\frac{1}{T}x(t).
+$$
+
+Isso mostra com clareza o papel de cada termo:
+
+- $\mathbf{M}$ codifica o acoplamento entre os sinais internos $e(t)$ e $c(t)$;
+- $\mathbf{H}x(t)$ representa a contribuição do estado sobre a saída do bloco dinâmico;
+- $\mathbf{P}r(t)$ injeta a referência na equação do somador.
+
+Como $\mathbf{M}$ é inversível, podemos resolver explicitamente os sinais internos:
+
+$$
+\mathbf{w}(t)=\mathbf{M}^{-1}\bigl(\mathbf{H}x(t)+\mathbf{P}r(t)\bigr).
+$$
+
+No caso em questão,
+
+$$
+\mathbf{M}^{-1}=\begin{pmatrix}1 & -1 \\ 0 & 1\end{pmatrix},
+$$
+
+e a resolução devolve exatamente
+
+$$
+e(t)=r(t)-\frac{1}{T}x(t),
 \qquad
-\mathbf{H} = \begin{pmatrix} 0 \\ \frac{1}{T} \end{pmatrix}.
+c(t)=\frac{1}{T}x(t).
 $$
 
-Resolvendo esse sistema, o CSSIM obtém instantaneamente $e(t)$ e $c(t)$ para qualquer valor atual de $x(t)$ e de $r(t)$.
+Agora passamos para a equação dinâmica geral:
 
-Na parte dinâmica, o bloco $\frac{1}{Ts}$ foi realizado de modo que seu estado obedece
+$$
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}_w\,\mathbf{w}(t)+\mathbf{B}_u\,\mathbf{u}(t).
+$$
+
+No exemplo, a realização em espaço de estados do bloco $\frac{1}{Ts}$ fornece a equação literal
 
 $$
 \dot{x}(t)=e(t).
 $$
 
-Esse ponto é essencial: o estado cresce ou decresce de acordo com o erro aplicado à entrada do integrador. Como o sistema algébrico já mostrou que
+Isto significa que:
+
+- não há contribuição direta do próprio estado na dinâmica do integrador;
+- a derivada depende diretamente do primeiro componente de $\mathbf{w}(t)$, que é o erro $e(t)$;
+- não há ação direta da entrada externa sobre a dinâmica, sem passar antes pelo somador.
+
+Em notação matricial, isso equivale a escrever
 
 $$
-e(t)=r(t)-\frac{1}{T}x(t),
+\dot{x}(t)=0\cdot x(t)+\begin{pmatrix}1 & 0\end{pmatrix}
+\begin{pmatrix}e(t) \\ c(t)\end{pmatrix}+0\cdot r(t).
 $$
 
-segue imediatamente que
+Portanto, neste exemplo,
 
 $$
-\dot{x}(t)=r(t)-\frac{1}{T}x(t).
+\mathbf{A}=[0],
+\qquad
+\mathbf{B}_w=\begin{pmatrix}1 & 0\end{pmatrix},
+\qquad
+\mathbf{B}_u=[0].
 $$
 
-Essa é a EDO final montada pelo CSSIM para o exemplo. Ela já está na forma explícita usada pelo integrador numérico.
+Substituindo a expressão de $\mathbf{w}(t)$, obtemos a dinâmica fechada:
 
-Se quisermos escrever o resultado em termos da saída $c(t)$, basta usar
+$$
+\dot{x}(t)=e(t)=r(t)-\frac{1}{T}x(t).
+$$
+
+Esta é a EDO que o CSSIM efetivamente integra.
+
+Essa passagem deixa claro o encadeamento lógico da montagem do modelo:
+
+1. o sistema algébrico calcula o erro $e(t)$ e a saída interna $c(t)$;
+2. a equação dinâmica usa esse erro como entrada do integrador;
+3. a substituição elimina as variáveis intermediárias e produz uma única EDO explícita.
+
+Observe o significado físico dessa equação:
+
+- se o estado ainda é pequeno, a saída também é pequena, então o erro é grande;
+- erro grande implica derivada grande, isto é, o estado cresce rapidamente;
+- à medida que a saída se aproxima da referência, o erro diminui;
+- por isso a resposta converge de forma exponencial.
+
+Se quisermos escrever o resultado em termos da saída do sistema, usamos
 
 $$
 c(t)=\frac{1}{T}x(t).
 $$
 
-Derivando,
+Derivando ambos os lados,
 
 $$
 \dot{c}(t)=\frac{1}{T}\dot{x}(t).
 $$
 
-Substituindo a expressão de $\dot{x}(t)$,
+Substituindo a dinâmica de $x(t)$,
 
 $$
 \dot{c}(t)=\frac{1}{T}r(t)-\frac{1}{T}c(t),
@@ -554,62 +621,45 @@ $$
 T\dot{c}(t)+c(t)=r(t).
 $$
 
-Portanto, no exemplo de primeira ordem, a etapa 6 faz exatamente o seguinte:
-
-- resolve a malha algébrica para descobrir o erro $e(t)$;
-- usa esse erro para determinar a derivada do estado interno;
-- elimina as variáveis intermediárias e produz a equação diferencial final da malha fechada.
-
-No exemplo, como
-
-$$
-\dot{x}(t)=e(t)
-$$
-
-e
-
-$$
-e(t)=r(t)-\frac{1}{T}x(t),
-$$
-
-segue que
-
-$$
-\dot{x}(t)=r(t)-\frac{1}{T}x(t).
-$$
-
-Usando
-
-$$
-c(t)=\frac{1}{T}x(t),
-$$
-
-obtemos a forma clássica do sistema de primeira ordem em malha fechada:
-
-$$
-T\dot{c}(t)+c(t)=r(t),
-\qquad
-\frac{C(s)}{R(s)}=\frac{1}{Ts+1}.
-$$
-
-O próprio notebook ainda avalia a função `rhs` em dois pontos:
-
-- `rhs(0.0, [0.0]) = [1.0]`
-- `rhs(0.5, [0.4]) = [0.6]`
-
-Esses valores são compatíveis com $r(t)=1$ e $T=1$, pois
-
-$$
-\dot{x}(t)=1-x(t).
-$$
+Portanto, a formulação em espaço de estados reproduz exatamente, para este exemplo, o modelo literal conhecido da malha fechada de primeira ordem.
 
 ---
 
-## Etapa 7 — Geração dos sinais de entrada com `generate_input_signal(...)`
+#### O que `build_solver(...)` fornece no exemplo
 
-A função `generate_input_signal(data)` converte os atributos dos blocos de entrada em funções temporais.
+No notebook, a chamada a `build_solver(...)` produz objetos como:
 
-No diagrama do notebook, o bloco `Block0` gera um degrau unitário. Assim,
+- `w_ids = ['Block1', 'Block2']`
+- `w_index = {'Block1': 0, 'Block2': 1}`
+- `M_inv = [[1, -1], [0, 1]]`
+- `P_u_terms = {0: [('Block0', 1.0)], 1: []}`
+- `H = [[0], [1]]`
+
+Didaticamente, isso significa:
+
+- `w_ids` indica quais sinais compõem o vetor algébrico $\mathbf{w}(t)$;
+- existe uma relação linear entre esses sinais;
+- essa relação pode ser resolvida imediatamente por meio de $\mathbf{M}^{-1}$;
+- a contribuição dos estados aparece em `H`;
+- as contribuições das entradas externas aparecem em `P_u_terms`.
+
+No fundo, `build_solver(...)` organiza a pergunta:
+
+> dado o estado atual e a entrada atual, quanto vale cada sinal interno da malha?
+
+Já `compute_rhs(...)` responde à pergunta seguinte:
+
+> sabendo os sinais internos, quanto vale a derivada do estado agora?
+
+Essa separação é bastante natural em espaço de estados: primeiro resolvemos as relações instantâneas; depois propagamos a dinâmica no tempo.
+
+---
+
+### Etapa 7 — Geração dos sinais de entrada com `generate_input_signal(...)`
+
+Os blocos de entrada do diagrama são convertidos em funções do tempo.
+
+No exemplo, a referência é um degrau unitário:
 
 $$
 r(t)=u(t),
@@ -617,117 +667,110 @@ r(t)=u(t),
 R(s)=\frac{1}{s}.
 $$
 
-Os valores mostrados no notebook confirmam esse comportamento:
-
-- $r(0.0)=1.0$
-- $r(1.0)=1.0$
-- $r(2.0)=1.0$
-
-No caso geral, a mesma função também permite montar entradas do tipo rampa, senoide e outras formas configuradas no diagrama.
+Isso significa que o sistema em espaço de estados será excitado por uma entrada constante igual a 1 para $t\ge 0$.
 
 ---
 
-## Etapa 8 — Execução da simulação com `run_simulation(...)`
+### Etapa 8 — Simulação numérica com `run_simulation(...)`
 
-A função `run_simulation(data, step_size, simulation_time, param_values)` coordena o processo completo de simulação:
+A função `run_simulation(data, step_size, simulation_time, param_values)` coordena todo o processo:
 
-1. cria o grafo;
-2. categoriza os blocos;
-3. gera os sinais de entrada;
-4. monta o sistema algébrico;
-5. constrói `rhs(t, x)`;
-6. integra a dinâmica numericamente.
+1. monta o grafo;
+2. classifica os blocos;
+3. gera as entradas;
+4. constrói o sistema algébrico;
+5. gera a função `rhs(t, x)`;
+6. integra a EDO.
 
-No notebook, essa chamada devolve:
-
-- `t`: vetor de tempo;
-- `input_signal_funcs_sim`: sinais de entrada usados na simulação;
-- `input_blocks_sim = ['Block0']`;
-- `output_out`, com a saída associada a `Block3`.
-
-Além disso, o notebook mostra:
-
-- `len(t) = 10000`
-- os primeiros valores de `c_sim(t)` e da solução analítica coincidem;
-- erro máximo aproximado de $1.4044\times 10^{-4}$.
-
-Para entrada degrau unitário e condições iniciais nulas, a solução analítica usada para comparação é
+No exemplo, a EDO integrada é
 
 $$
-c(t)=1-e^{-t/T}, \qquad t\ge 0.
+\dot{x}(t)=1-x(t),
 $$
 
-Assim, a simulação numérica confirma a montagem correta do modelo matemático.
+pois $T=1$ e a entrada é um degrau unitário.
+
+Com condição inicial nula, a solução analítica é
+
+$$
+x(t)=1-e^{-t}.
+$$
+
+Como neste caso $c(t)=x(t)$, a saída também é
+
+$$
+c(t)=1-e^{-t}.
+$$
+
+O notebook mostra que a solução numérica coincide com a solução analítica com erro muito pequeno, confirmando que a montagem do modelo está correta.
 
 ---
 
-## Etapa 9 — Visualização dos resultados com `plot_signals(...)`
+### Etapa 9 — Visualização com `plot_signals(...)`
 
-A função `plot_signals(t, input_signals, input_blocks, outputs, data_diagram)` gera os gráficos dos sinais de entrada e saída do diagrama.
+Após integrar o sistema, o CSSIM reconstrói e plota os sinais de interesse.
 
-No notebook, essa visualização é complementada por um segundo gráfico em `matplotlib` que compara:
+Do ponto de vista didático, essa etapa é importante porque conecta três níveis de descrição do mesmo sistema:
 
-- a resposta simulada `c_sim(t)`;
-- a resposta analítica $1-e^{-t/T}$.
+1. **diagrama de blocos**;
+2. **equação de estado**;
+3. **resposta temporal**.
 
-Logo, a etapa de visualização não apenas exibe os sinais, mas também evidencia a concordância entre:
-
-$$
-r(t)=u(t)
-$$
-
-e
-
-$$
-c(t)=1-e^{-t/T}.
-$$
+Quando o gráfico da simulação coincide com a curva analítica $1-e^{-t/T}$, isso mostra que a passagem do diagrama para o modelo em espaço de estados foi feita corretamente.
 
 ---
 
-## Etapa 10 — Incorporação ao notebook com `open_gui(...)`
+### Etapa 10 — Integração com o notebook via `open_gui(...)`
 
-Por fim, o notebook mostra o uso de
+A chamada
 
 ```python
 open_gui("diagrams/first_order_step.json")
 ```
 
-para incorporar a interface gráfica do CSSIM ao ambiente do Jupyter.
+incorpora a interface visual do CSSIM ao notebook. Essa etapa não altera a matemática do problema, mas facilita a ligação entre:
 
-Essa etapa não altera o modelo matemático, mas conecta a análise teórica e numérica com a interface visual do diagrama utilizado na simulação.
-
----
-
-## Forma matemática global do CSSIM
-
-Em resumo, o método do CSSIM pode ser descrito por duas relações acopladas:
-
-$$
-\mathbf{y}(t)=\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{u}_{\text{ext}}(t)\bigr),
-$$
-
-$$
-\dot{\mathbf{x}}(t)=F\bigl(\mathbf{x}(t),\mathbf{y}(t),\mathbf{u}_{\text{ext}}(t)\bigr).
-$$
-
-Eliminando o vetor algébrico $\mathbf{y}(t)$, o problema fica na forma padrão
-
-$$
-\dot{\mathbf{x}}(t)=f\bigl(t,\mathbf{x}(t)\bigr).
-$$
-
-Essa formulação é útil porque:
-
-- separa a parte algébrica da parte dinâmica;
-- trata realimentações de forma sistemática;
-- permite combinar vários tipos de bloco em um único modelo;
-- produz uma formulação compatível com integração numérica direta.
+- a representação gráfica do sistema;
+- sua formulação matemática;
+- os resultados da simulação.
 
 ---
 
-## Consolidação do exemplo de primeira ordem
+## 5. Resumo matemático global do CSSIM
 
-No exemplo do notebook, a malha fechada pode ser resumida pelas equações
+Em uma forma mais geral, o CSSIM trabalha com duas camadas acopladas.
+
+Primeiro, a camada algébrica:
+
+$$
+\mathbf{w}(t)=\mathbf{M}^{-1}\bigl(\mathbf{H}\,\mathbf{x}(t)+\mathbf{P}\,\mathbf{u}(t)\bigr).
+$$
+
+Depois, a camada dinâmica:
+
+$$
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}_w\,\mathbf{w}(t)+\mathbf{B}_u\,\mathbf{u}(t).
+$$
+
+Substituindo a primeira na segunda, e usando $\mathbf{A}$ e $\mathbf{B}$ para denotar as matrizes equivalentes do sistema completo, obtemos a forma padrão de simulação:
+
+$$
+\dot{\mathbf{x}}(t)=\mathbf{A}\,\mathbf{x}(t)+\mathbf{B}\,\mathbf{u}(t).
+$$
+
+e a saída externa pode ser escrita, na notação tradicional, como
+
+$$
+\mathbf{y}(t)=\mathbf{C}\,\mathbf{x}(t)+\mathbf{D}\,\mathbf{u}(t).
+$$
+
+Esse procedimento é exatamente o que se espera de uma abordagem em espaço de estados aplicada a diagramas de blocos: identificar os estados, resolver as interconexões e produzir uma EDO explícita.
+
+---
+
+## 6. Consolidação do exemplo de primeira ordem
+
+No exemplo do notebook, a malha pode ser resumida pelas equações
 
 $$
 e(t)=r(t)-c(t),
@@ -741,13 +784,13 @@ $$
 c(t)=\frac{1}{T}x(t).
 $$
 
-Substituindo as relações, obtemos
+Eliminando as variáveis intermediárias, obtemos
 
 $$
 \dot{x}(t)=r(t)-\frac{1}{T}x(t).
 $$
 
-Como $c(t)=\frac{1}{T}x(t)$, segue a forma equivalente
+Em termos da saída,
 
 $$
 T\dot{c}(t)+c(t)=r(t).
@@ -759,19 +802,13 @@ $$
 \frac{C(s)}{R(s)}=\frac{1}{Ts+1}.
 $$
 
-Para o degrau unitário,
-
-$$
-r(t)=u(t),
-$$
-
-e, com condições iniciais nulas,
+Para um degrau unitário e condições iniciais nulas,
 
 $$
 c(t)=1-e^{-t/T}.
 $$
 
-No caso específico do notebook, como $T=1$,
+Quando $T=1$,
 
 $$
 c(t)=1-e^{-t}.
@@ -779,32 +816,27 @@ $$
 
 ---
 
-## Conclusão
+## 7. Conclusão
 
-O notebook de primeira ordem mostra, de forma explícita, como o CSSIM passa de um diagrama de blocos para um modelo matemático completo:
+O ponto principal do notebook não é apenas simular um sistema de primeira ordem, mas mostrar como um diagrama de blocos pode ser reinterpretado em linguagem de espaço de estados.
 
-1. lê a topologia do sistema em JSON;
-2. converte essa topologia em um grafo;
-3. resolve parâmetros simbólicos;
-4. classifica os blocos por função;
-5. converte blocos dinâmicos para espaço de estados;
-6. monta o sistema algébrico e a dinâmica global;
-7. gera os sinais de entrada;
-8. integra numericamente o sistema;
-9. visualiza os resultados;
-10. incorpora o diagrama ao notebook.
+No CSSIM, esse processo ocorre assim:
 
-No exemplo estudado, esse processo leva exatamente ao modelo
+1. o diagrama fornece a estrutura de interconexão;
+2. os blocos dinâmicos são convertidos para matrizes de estado;
+3. os blocos algébricos geram relações lineares entre sinais internos;
+4. essas relações são combinadas em uma EDO explícita;
+5. o integrador numérico resolve essa EDO no tempo.
+
+No exemplo estudado, tudo se reduz ao modelo
 
 $$
 \dot{x}(t)=r(t)-\frac{1}{T}x(t),
-$$
-
-$$
+\qquad
 c(t)=\frac{1}{T}x(t),
 $$
 
-ou, equivalentemente,
+que é equivalente a
 
 $$
 T\dot{c}(t)+c(t)=r(t),
@@ -812,4 +844,8 @@ T\dot{c}(t)+c(t)=r(t),
 \frac{C(s)}{R(s)}=\frac{1}{Ts+1}.
 $$
 
-Assim, o documento fica consistente com a estrutura, a nomenclatura e os resultados atualmente apresentados no notebook.
+Assim, o CSSIM conecta de forma natural três perspectivas do mesmo sistema:
+
+- a estrutura do diagrama de blocos;
+- a teoria de espaço de estados;
+- a resposta temporal obtida por simulação.
