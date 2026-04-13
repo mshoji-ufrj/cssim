@@ -65,7 +65,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      font-weight: bold;
+      font-weight: normal;
     }
     .block.pid .pid-content {
       font-size: 12px;
@@ -356,13 +356,13 @@
     const BLOCK_PARAM_DEFAULTS = Object.freeze({
       'input': Object.freeze({
         'data-signal': 'step',
-        'data-t0': '0',
-        'data-a0': '0',
-        'data-a': '1',
-        'data-m': '1',
-        'data-f': '60',
-        'data-phase': '0',
-        'data-offset': '0'
+        'data-t0': '',
+        'data-a0': '',
+        'data-a': '',
+        'data-m': '',
+        'data-f': '',
+        'data-phase': '',
+        'data-offset': ''
       }),
       'operation': Object.freeze({
         'data-operator-1': '+',
@@ -370,14 +370,14 @@
         'data-position': 'bottom'
       }),
       'gain': Object.freeze({
-        'data-gain': '1',
+        'data-gain': '',
         'data-flipped': '0'
       }),
       'pid': Object.freeze({
         'data-mode': 'PID',
-        'data-kp': '1',
-        'data-ti': '1',
-        'data-td': '1'
+        'data-kp': '',
+        'data-ti': '',
+        'data-td': ''
       }),
       'text': Object.freeze({
         'data-text': 'Text'
@@ -542,6 +542,9 @@
         }
 
         this.setDefaultAttributes(block, blockType, blockName.innerText);
+        if (blockType === 'transfer_function') {
+          this.updateTransferFunctionBlockContent(block);
+        }
         if (pidContent) {
            this.updatePidBlockContent(block);
         }
@@ -581,7 +584,7 @@
           block.setAttribute('data-operator-2', '-');
           block.setAttribute('data-position', 'bottom');
         } else if (blockType === 'gain') {
-          block.setAttribute('data-gain', '1');
+          block.setAttribute('data-gain', '');
           block.setAttribute('data-flipped', '0'); // Default flip attribute
           block.innerHTML = `
             <svg width="60" height="60" viewBox="0 0 60 60">
@@ -591,9 +594,9 @@
           `;
         } else if (blockType === 'pid') {
           block.setAttribute('data-mode', 'PID');
-          block.setAttribute('data-kp', '1');
-          block.setAttribute('data-ti', '1');
-          block.setAttribute('data-td', '1');
+          block.setAttribute('data-kp', '');
+          block.setAttribute('data-ti', '');
+          block.setAttribute('data-td', '');
         } else if (blockType === 'text') {
           block.setAttribute('data-text', 'Text');
         }
@@ -623,6 +626,26 @@
         textContent.textContent = this.normalizeTextBlockValue(value);
       }
 
+      updateTransferFunctionBlockContent(block) {
+        if (!block || !block.classList.contains('transfer_function')) return;
+        const contentEl = block.querySelector('.transfer-function-content');
+        if (!contentEl) return;
+
+        const numerator = (this.resolveAttributeValue(block, 'data-numerator', '') || '').trim();
+        const denominator = (this.resolveAttributeValue(block, 'data-denominator', '') || '').trim();
+
+        if (!numerator || !denominator) {
+          contentEl.innerHTML = '';
+          return;
+        }
+
+        contentEl.innerHTML = `
+          <div class="numerator">${numerator}</div>
+          <hr>
+          <div class="denominator">${denominator}</div>
+        `;
+      }
+
         normalizePidParamValue(value, fallback) {
           if (typeof value !== 'string') {
             value = value == null ? '' : String(value);
@@ -633,13 +656,14 @@
 
         formatPidEquation(mode, kp, ti, td) {
           const safeMode = (mode || 'PID').toUpperCase();
-          const kpValue = this.normalizePidParamValue(kp, '1');
-          const tiValue = this.normalizePidParamValue(ti, '1');
-          const tdValue = this.normalizePidParamValue(td, '1');
+          const kpValue = this.normalizePidParamValue(kp, '');
+          const tiValue = this.normalizePidParamValue(ti, '');
+          const tdValue = this.normalizePidParamValue(td, '');
 
-          if (safeMode === 'P') return kpValue;
-          if (safeMode === 'PI') return `${kpValue} (1 + 1/(${tiValue}*s))`;
-          if (safeMode === 'PD') return `${kpValue} (1 + ${tdValue}*s)`;
+          if (safeMode === 'P') return kpValue ? kpValue : '';
+          if (safeMode === 'PI') return kpValue && tiValue ? `${kpValue} (1 + 1/(${tiValue}*s))` : '';
+          if (safeMode === 'PD') return kpValue && tdValue ? `${kpValue} (1 + ${tdValue}*s)` : '';
+          if (!(kpValue && tiValue && tdValue)) return '';
           return `${kpValue} (1 + 1/(${tiValue}*s) + ${tdValue}*s)`;
         }
 
@@ -649,9 +673,9 @@
           if (!pidContent) return;
 
           const mode = this.resolveAttributeValue(block, 'data-mode', 'PID').toUpperCase();
-          const kp = this.resolveAttributeValue(block, 'data-kp', '1');
-          const ti = this.resolveAttributeValue(block, 'data-ti', '1');
-          const td = this.resolveAttributeValue(block, 'data-td', '1');
+          const kp = this.resolveAttributeValue(block, 'data-kp', '');
+          const ti = this.resolveAttributeValue(block, 'data-ti', '');
+          const td = this.resolveAttributeValue(block, 'data-td', '');
           pidContent.textContent = this.formatPidEquation(mode, kp, ti, td);
         }
 
@@ -1222,7 +1246,7 @@
       showGainOptions(block) {
         document.getElementById('gain-options').style.display = 'block';
         document.getElementById('gain-name').value = block.getAttribute('data-name') || '';
-        document.getElementById('gain-value').value = this.resolveAttributeValue(block, 'data-gain', '1');
+        document.getElementById('gain-value').value = this.resolveAttributeValue(block, 'data-gain', '');
         const flipValue = this.resolveAttributeValue(block, 'data-flipped', '0');
         const isFlipped = flipValue === '1';
         document.getElementById('flip-gain-checkbox').checked = isFlipped;
@@ -1365,14 +1389,7 @@
             this.selectedBlock.setAttribute('data-denominator', denominator);
             const blockNameElem = this.selectedBlock.querySelector('.block-name');
             if (blockNameElem) blockNameElem.innerText = newName;
-            const contentEl = this.selectedBlock.querySelector('.transfer-function-content');
-            if (contentEl) {
-              contentEl.innerHTML = `
-                <div class="numerator">${numerator}</div>
-                <hr>
-                <div class="denominator">${denominator}</div>
-              `;
-            }
+            this.updateTransferFunctionBlockContent(this.selectedBlock);
           } else if (blockType === 'output') {
             const newName = document.getElementById('output-name').value;
             this.selectedBlock.setAttribute('data-name', newName);
@@ -1668,14 +1685,10 @@
           if (b.type === 'transfer_function') {
             const contentEl = document.createElement('div');
             contentEl.classList.add('transfer-function-content');
-            contentEl.innerHTML = `
-              <div class="numerator">${b.attributes['data-numerator'] || ''}</div>
-              <hr>
-              <div class="denominator">${b.attributes['data-denominator'] || ''}</div>
-            `;
             // Insert before block name to ensure correct placement
             const nameEl = block.querySelector('.block-name');
             block.insertBefore(contentEl, nameEl);
+            this.updateTransferFunctionBlockContent(block);
           }
           // Render operation block operators for loaded blocks
           if (b.type === 'operation') {
