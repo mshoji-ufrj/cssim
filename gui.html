@@ -62,12 +62,20 @@
     .block.pid {
       width: 120px;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       font-weight: bold;
     }
     .block.pid .pid-content {
-      font-size: 14px;
+      font-size: 12px;
+      font-weight: normal;
+      line-height: 1.2;
+      max-width: 100%;
+      padding: 0 6px;
+      box-sizing: border-box;
+      white-space: normal;
+      word-break: break-word;
     }
     #pid-options .pid-field {
       display: flex;
@@ -319,7 +327,7 @@
           <option value="PID" selected>PID</option>
         </select>
         <div id="pid-formula" class="pid-formula" style="margin: 10px 0; font-weight: bold;">
-          K<sub>p</sub> (1 + 1/(T<sub>i</sub> s) + T<sub>d</sub> s)
+          K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + T<sub>d</sub>*s)
         </div>
         <div id="pid-params">
           <div class="pid-field" id="pid-kp-row">
@@ -535,7 +543,7 @@
 
         this.setDefaultAttributes(block, blockType, blockName.innerText);
         if (pidContent) {
-          pidContent.innerText = (block.getAttribute('data-mode') || 'PID').toUpperCase();
+           this.updatePidBlockContent(block);
         }
         if (blockType === 'text') {
           this.ensureTextBlockContent(block, block.getAttribute('data-text') || 'Text');
@@ -614,6 +622,38 @@
         }
         textContent.textContent = this.normalizeTextBlockValue(value);
       }
+
+        normalizePidParamValue(value, fallback) {
+          if (typeof value !== 'string') {
+            value = value == null ? '' : String(value);
+          }
+          const trimmed = value.trim();
+          return trimmed === '' ? fallback : trimmed;
+        }
+
+        formatPidEquation(mode, kp, ti, td) {
+          const safeMode = (mode || 'PID').toUpperCase();
+          const kpValue = this.normalizePidParamValue(kp, '1');
+          const tiValue = this.normalizePidParamValue(ti, '1');
+          const tdValue = this.normalizePidParamValue(td, '1');
+
+          if (safeMode === 'P') return kpValue;
+          if (safeMode === 'PI') return `${kpValue} (1 + 1/(${tiValue}*s))`;
+          if (safeMode === 'PD') return `${kpValue} (1 + ${tdValue}*s)`;
+          return `${kpValue} (1 + 1/(${tiValue}*s) + ${tdValue}*s)`;
+        }
+
+        updatePidBlockContent(block) {
+          if (!block || !block.classList.contains('pid')) return;
+          const pidContent = block.querySelector('.pid-content');
+          if (!pidContent) return;
+
+          const mode = this.resolveAttributeValue(block, 'data-mode', 'PID').toUpperCase();
+          const kp = this.resolveAttributeValue(block, 'data-kp', '1');
+          const ti = this.resolveAttributeValue(block, 'data-ti', '1');
+          const td = this.resolveAttributeValue(block, 'data-td', '1');
+          pidContent.textContent = this.formatPidEquation(mode, kp, ti, td);
+        }
 
       resolveAttributeValue(block, attr, fallback) {
         const value = block.getAttribute(attr);
@@ -1212,9 +1252,9 @@
         if (options) options.setAttribute('data-mode', mode);
         const formulas = {
           'P': 'K<sub>p</sub>',
-          'PI': 'K<sub>p</sub> (1 + 1/(T<sub>i</sub> s))',
-          'PD': 'K<sub>p</sub> (1 + T<sub>d</sub> s)',
-          'PID': 'K<sub>p</sub> (1 + 1/(T<sub>i</sub> s) + T<sub>d</sub> s)'
+          'PI': 'K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s))',
+          'PD': 'K<sub>p</sub> (1 + T<sub>d</sub>*s)',
+          'PID': 'K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + T<sub>d</sub>*s)'
         };
         const formulaEl = document.getElementById('pid-formula');
         if (formulaEl) formulaEl.innerHTML = formulas[mode] || formulas['PID'];
@@ -1386,8 +1426,7 @@
 
             const blockNameElem = this.selectedBlock.querySelector('.block-name');
             if (blockNameElem) blockNameElem.innerText = newName;
-            const pidContent = this.selectedBlock.querySelector('.pid-content');
-            if (pidContent) pidContent.innerText = mode;
+            this.updatePidBlockContent(this.selectedBlock);
           } else if (blockType === 'text') {
             const textValue = this.normalizeTextBlockValue(document.getElementById('text-block-value').value);
             if (this.isTextBlockEmpty(textValue)) {
@@ -1603,8 +1642,8 @@
           if (b.type === 'pid') {
             const pidContent = document.createElement('div');
             pidContent.classList.add('pid-content');
-            pidContent.innerText = (block.getAttribute('data-mode') || 'PID').toUpperCase();
             block.insertBefore(pidContent, blockName);
+            this.updatePidBlockContent(block);
           }
           if (b.type === 'text') {
             this.ensureTextBlockContent(block, b.attributes['data-text'] || '');
