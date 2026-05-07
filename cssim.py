@@ -418,16 +418,31 @@ def categorize_blocks(data, G, param_values=None):
 
 def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_states):
     """
-    Classical control-inspired algebraic solver builder.
-    Models algebraic connections between blocks (gains, operations, passthrough) using symbolic substitution logic,
-    but implemented as a linear system M * w = H * x + P * u.
-    Here, `P_u_terms` stores the sparse external-input contributions associated with P * u.
-    This version supports arbitrary interconnection, including feedback loops.
+    Build the algebraic part of the interconnected block diagram.
+
+    This function encodes the algebraic network as:
+
+        M * w = H * x + P * u
+
+    where:
+    - w collects internal block outputs that can participate in loops.
+    - x is the global state vector.
+    - u represents external input signals.
+    - M captures how internal signals depend on other internal signals.
+    - H captures how internal signals depend on states.
+    - P is stored sparsely as `P_u_terms`, because external inputs are easier
+      to evaluate by name than by building a dense matrix.
+
+    The returned inverse M_inv is later used inside compute_rhs() to recover
+    w(t) at each time instant before assembling dx/dt.
     """
+    # Only blocks that can appear as algebraic signal sources belong to w.
+    # External input blocks are not part of w; they are evaluated separately.
     w_ids = [b["id"] for b in static_blocks] + [b["id"] for b in tf_blocks] + [b["id"] for b in pid_blocks]
     w_index = {bid: i for i, bid in enumerate(w_ids)}
     n_states = total_states
 
+    # Start from w_i on the left-hand side, then move dependencies to M, H and P.
     M = np.eye(len(w_ids))
     H = np.zeros((len(w_ids), n_states))
     P_u_terms = {i: [] for i in range(len(w_ids))}
@@ -451,6 +466,8 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
                     except Exception:
                         gain = 1.0
             src = inputs[0]
+            # If the source is another internal algebraic signal, it contributes
+            # to M. Otherwise it is an external input term and is stored in P*u.
             if src in w_index:
                 M[i, w_index[src]] = -gain
             else:
@@ -466,12 +483,15 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
                 vert_input: 1.0 if op2 == "+" else -1.0,
             }
             for src, coeff in coeffs.items():
+                # Summing junctions are treated the same way: internal sources
+                # modify M, external sources are recorded as P*u contributions.
                 if src in w_index:
                     M[i, w_index[src]] = -coeff
                 else:
                     P_u_terms[i].append((src, coeff))
         else:
             for src in inputs:
+                # Passthrough-like blocks simply copy incoming signals.
                 if src in w_index:
                     M[i, w_index[src]] = -1.0
                 else:
@@ -481,10 +501,13 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
         i = w_index[tf["id"]]
         src = tf["in_id"]
         D = float(tf["D"])
+        # The direct-feedthrough term D connects the input directly to the
+        # algebraic output of the transfer function block.
         if src in w_index:
             M[i, w_index[src]] = -D
         else:
             P_u_terms[i].append((src, D))
+        # The state-dependent output term C*x contributes through H.
         H[i, tf["state_slice"]] = tf["C"].flatten()
 
     for pid in pid_blocks:
@@ -492,16 +515,20 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
         src = pid["in_id"]
         kp = pid["Kp"]
 
+        # The proportional action acts as an instantaneous algebraic path.
         if src in w_index:
             M[i, w_index[src]] = M[i, w_index[src]] - kp
         elif src is not None:
             P_u_terms[i].append((src, kp))
 
+        # The integral state contributes to the PID output through Ki * x_I.
         if pid["integral_slice"] is not None:
             H[i, pid["integral_slice"]] = pid["Ki"]
 
         derivative = pid["derivative"]
         if derivative is not None:
+            # The filtered derivative contributes both through its internal state
+            # (C*x_d) and, if D != 0, through direct feedthrough from the input.
             H[i, derivative["slice"]] = derivative["C"].flatten()
             D = derivative["D"]
             if abs(D) > 0:
@@ -565,7 +592,7 @@ def generate_input_signal(data):
 
 def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_terms, H):
     """
-    Computes the right-hand side of the state-space model using algebraic resolution.
+    Build the function dx/dt = f(t, x) used by solve_ivp().
 
     Arguments:
     - u_signals: dict of input signal functions u_i(t)
@@ -580,31 +607,36 @@ def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_ter
     - Function f(t, x) = dx/dt for numerical integration
     """
     def rhs(t, x):
-        # Step 1: Compute H * x(t)
+        # Start from the state-dependent part of the algebraic network.
         Hx_plus_Pu = H.dot(x)
 
-        # Step 2: Add input contributions associated with P * u(t)
+        # Add the external input contributions. P is stored sparsely as named
+        # signal references plus coefficients, so we evaluate each u_i(t) here.
         for i, u_terms in P_u_terms.items():
             for u_id, coeff in u_terms:
                 func = u_signals.get(u_id)
                 Hx_plus_Pu[i] += coeff * func(t) if func else 0.0
 
-        # Step 3: Solve w = M⁻¹ (H x + P u)
+        # Recover the internal algebraic signals for the current time/state.
         w = M_inv.dot(Hx_plus_Pu)
 
         def eval_node(node_id):
+            # Internal nodes are read from w; external nodes are evaluated from
+            # the user-defined input signal functions.
             if node_id in w_index:
                 return w[w_index[node_id]]
             func = u_signals.get(node_id)
             return func(t) if func else 0.0
 
-        # Step 4: Compute dx/dt for each transfer function block
+        # Assemble the global derivative vector by filling each block's slice.
         dx = np.zeros_like(x)
         for tf in tf_blocks:
             sl = tf["state_slice"]
             x_i = x[sl]
             input_id = tf["in_id"]
             input_val = eval_node(input_id)
+            # Local state equation of the transfer-function realization:
+            # x_i_dot = A_i * x_i + B_i * u_i
             dx[sl] = tf["A"].dot(x_i) + tf["B"].flatten() * input_val
 
         for pid in pid_blocks:
@@ -612,6 +644,7 @@ def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_ter
             input_val = eval_node(input_id) if input_id is not None else 0.0
 
             if pid["integral_slice"] is not None:
+                # Integral action state: d/dt x_I = error input.
                 dx[pid["integral_slice"]] = input_val
 
             derivative = pid["derivative"]
@@ -620,6 +653,7 @@ def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_ter
                 x_d = x[sl]
                 A_d = derivative["A"]
                 B_d = derivative["B"].flatten()
+                # Filtered derivative state equation.
                 dx[sl] = A_d.dot(x_d) + B_d * input_val
 
         return dx
