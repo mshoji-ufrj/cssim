@@ -345,7 +345,7 @@ def categorize_blocks(data, G, param_values=None):
             tf_blocks.append({
                 "id": bid, "A": A, "B": B, "C": C, "D": D,
                 "in_id": preds[0],
-                "state_slice": slice(idx_cursor, idx_cursor + n),
+                "state_idx": slice(idx_cursor, idx_cursor + n),
                 "order": n
             })
             idx_cursor += n
@@ -364,11 +364,11 @@ def categorize_blocks(data, G, param_values=None):
             td_val = resolve_param(attrs.get("data-td"), default=0.0) if has_derivative else None
             if has_derivative and (td_val is None or td_val <= 0):
                 has_derivative = False
-            integral_slice = None
+            integral_idx = None
             derivative_struct = None
             state_dim = 0
             if has_integral:
-                integral_slice = slice(idx_cursor, idx_cursor + 1)
+                integral_idx = slice(idx_cursor, idx_cursor + 1)
                 idx_cursor += 1
                 state_dim += 1
             if has_derivative:
@@ -377,16 +377,16 @@ def categorize_blocks(data, G, param_values=None):
                     alpha = 1e-6
                 A_d, B_d, C_d, D_d = tf_to_ss([kp * td_val, 0.0], [alpha, 1.0], param_values=pv)
                 order_d = A_d.shape[0]
-                derivative_slice = slice(idx_cursor, idx_cursor + order_d)
+                derivative_idx = slice(idx_cursor, idx_cursor + order_d)
                 idx_cursor += order_d
                 state_dim += order_d
-                derivative_struct = {"A": A_d, "B": B_d, "C": C_d, "D": D_d, "slice": derivative_slice}
+                derivative_struct = {"A": A_d, "B": B_d, "C": C_d, "D": D_d, "idx": derivative_idx}
             pid_blocks.append({
                 "id": bid, "mode": mode, "Kp": kp, "Ki": ki,
                 "Ti": ti_val if has_integral else None,
                 "Td": td_val if has_derivative else None,
                 "in_id": input_id,
-                "integral_slice": integral_slice,
+                "integral_idx": integral_idx,
                 "derivative": derivative_struct,
                 "state_dim": state_dim
             })
@@ -508,7 +508,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
         else:
             P_u_terms[i].append((src, D))
         # The state-dependent output term C*x contributes through H.
-        H[i, tf["state_slice"]] = tf["C"].flatten()
+        H[i, tf["state_idx"]] = tf["C"].flatten()
 
     for pid in pid_blocks:
         i = w_index[pid["id"]]
@@ -522,14 +522,14 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
             P_u_terms[i].append((src, kp))
 
         # The integral state contributes to the PID output through Ki * x_I.
-        if pid["integral_slice"] is not None:
-            H[i, pid["integral_slice"]] = pid["Ki"]
+        if pid["integral_idx"] is not None:
+            H[i, pid["integral_idx"]] = pid["Ki"]
 
         derivative = pid["derivative"]
         if derivative is not None:
             # The filtered derivative contributes both through its internal state
             # (C*x_d) and, if D != 0, through direct feedthrough from the input.
-            H[i, derivative["slice"]] = derivative["C"].flatten()
+            H[i, derivative["idx"]] = derivative["C"].flatten()
             D = derivative["D"]
             if abs(D) > 0:
                 if src in w_index:
@@ -628,33 +628,33 @@ def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_ter
             func = u_signals.get(node_id)
             return func(t) if func else 0.0
 
-        # Assemble the global derivative vector by filling each block's slice.
+        # Assemble the global derivative vector by filling each block's state indices.
         dx = np.zeros_like(x)
         for tf in tf_blocks:
-            sl = tf["state_slice"]
-            x_i = x[sl]
+            state_idx = tf["state_idx"]
+            x_i = x[state_idx]
             input_id = tf["in_id"]
             input_val = eval_node(input_id)
             # Local state equation of the transfer-function realization:
             # x_i_dot = A_i * x_i + B_i * u_i
-            dx[sl] = tf["A"].dot(x_i) + tf["B"].flatten() * input_val
+            dx[state_idx] = tf["A"].dot(x_i) + tf["B"].flatten() * input_val
 
         for pid in pid_blocks:
             input_id = pid["in_id"]
             input_val = eval_node(input_id) if input_id is not None else 0.0
 
-            if pid["integral_slice"] is not None:
+            if pid["integral_idx"] is not None:
                 # Integral action state: d/dt x_I = error input.
-                dx[pid["integral_slice"]] = input_val
+                dx[pid["integral_idx"]] = input_val
 
             derivative = pid["derivative"]
             if derivative is not None:
-                sl = derivative["slice"]
-                x_d = x[sl]
+                derivative_idx = derivative["idx"]
+                x_d = x[derivative_idx]
                 A_d = derivative["A"]
                 B_d = derivative["B"].flatten()
                 # Filtered derivative state equation.
-                dx[sl] = A_d.dot(x_d) + B_d * input_val
+                dx[derivative_idx] = A_d.dot(x_d) + B_d * input_val
 
         return dx
 
