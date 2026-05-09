@@ -191,6 +191,115 @@ def draw_graph(G):
 
 
 
+
+def categorize_blocks(data, G, param_values=None):
+    """
+        Categorize blocks and resolve parameters for:
+            - transfer_function: numerator/denominator (strings already handled in tf_to_ss)
+            - gain: data-gain
+            - pid: data-kp, data-ti, data-td
+            - input: numeric attributes (amplitude, delay, etc.)
+    """
+    input_blocks = []
+    tf_blocks = []
+    static_blocks = []
+    pid_blocks = []
+    output_blocks = []
+    idx_cursor = 0
+    pv = param_values or PARAM_VALUES
+
+    for b in data["blocks"]:
+        bid = b["id"]
+        typ = b["type"]
+        if typ.lower().endswith('connector'):
+            continue
+        if typ == "input":
+            # resolve potential numeric attributes
+            attrs = b.get("attributes", {})
+            b["resolved_attributes"] = resolve_input_attributes(attrs)
+            input_blocks.append(bid)
+        elif typ == "transfer_function":
+            num = b["attributes"]["data-numerator"]
+            den = b["attributes"]["data-denominator"]
+            A, B, C, D = tf_to_ss(num, den, param_values=pv)
+            n = A.shape[0]
+            preds = list(G.predecessors(bid))
+            if not preds:
+                raise ValueError(f"Transfer Function {bid} has no input.")
+            tf_blocks.append({
+                "id": bid, "A": A, "B": B, "C": C, "D": D,
+                "in_id": preds[0],
+                "state_idx": slice(idx_cursor, idx_cursor + n),
+                "order": n
+            })
+            idx_cursor += n
+        elif typ == "pid":
+            attrs = b.get("attributes", {})
+            preds = list(G.predecessors(bid))
+            input_id = preds[0] if preds else None
+            mode = (attrs.get("data-mode") or "PID").upper()
+            kp = resolve_param(attrs.get("data-kp"), default=1.0)
+            has_integral = 'I' in mode
+            has_derivative = 'D' in mode
+            ti_val = resolve_param(attrs.get("data-ti"), default=1.0) if has_integral else None
+            if has_integral and (ti_val is None or abs(ti_val) <= 1e-12):
+                raise ValueError(f"PID {bid} requires T_i != 0.")
+            ki = kp / ti_val if has_integral else 0.0
+            td_val = resolve_param(attrs.get("data-td"), default=0.0) if has_derivative else None
+            if has_derivative and (td_val is None or td_val <= 0):
+                has_derivative = False
+            integral_idx = None
+            derivative_struct = None
+            state_dim = 0
+            if has_integral:
+                integral_idx = slice(idx_cursor, idx_cursor + 1)
+                idx_cursor += 1
+                state_dim += 1
+            if has_derivative:
+                alpha = td_val / PID_D_FILTER_N if PID_D_FILTER_N else td_val
+                if alpha <= 0:
+                    alpha = 1e-6
+                A_d, B_d, C_d, D_d = tf_to_ss([kp * td_val, 0.0], [alpha, 1.0], param_values=pv)
+                order_d = A_d.shape[0]
+                derivative_idx = slice(idx_cursor, idx_cursor + order_d)
+                idx_cursor += order_d
+                state_dim += order_d
+                derivative_struct = {"A": A_d, "B": B_d, "C": C_d, "D": D_d, "idx": derivative_idx}
+            pid_blocks.append({
+                "id": bid, "mode": mode, "Kp": kp, "Ki": ki,
+                "Ti": ti_val if has_integral else None,
+                "Td": td_val if has_derivative else None,
+                "in_id": input_id,
+                "integral_idx": integral_idx,
+                "derivative": derivative_struct,
+                "state_dim": state_dim
+            })
+        elif typ == "gain":
+            attrs = b.get("attributes", {})
+            gain_raw = attrs.get("data-gain", "1")
+            gain_val = resolve_param(gain_raw, default=1.0)
+            static_blocks.append({
+                "id": bid,
+                "type": typ,
+                "gain": gain_val,
+                "raw_gain": gain_raw,
+                "attrs": attrs,
+                "in_ids": list(G.predecessors(bid)),
+                "positions": { (u, bid): G.edges[u, bid].get('position') for u in G.predecessors(bid) }
+            })
+        elif typ == "output":
+            output_blocks.append(bid)
+        else:
+            static_blocks.append({
+                "id": bid,
+                "type": typ,
+                "attrs": b.get("attributes", {}),
+                "in_ids": list(G.predecessors(bid)),
+                "positions": { (u, bid): G.edges[u, bid].get('position') for u in G.predecessors(bid) }
+            })
+    return input_blocks, tf_blocks, static_blocks, pid_blocks, output_blocks, idx_cursor
+
+
 def tf_to_ss(num, den, verbose=False, param_values=None):
     """
     Build the controllable canonical form for a proper transfer function
@@ -307,113 +416,52 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
 
     return A, B, C, D
 
-
-def categorize_blocks(data, G, param_values=None):
+def generate_input_signal(data):
     """
-        Categorize blocks and resolve parameters for:
-            - transfer_function: numerator/denominator (strings already handled in tf_to_ss)
-            - gain: data-gain
-            - pid: data-kp, data-ti, data-td
-            - input: numeric attributes (amplitude, delay, etc.)
+    Generate Python functions for Input signals (step, impulse, ramp, sine, square, triangle)
+    using attributes already resolved via set_parameters()/resolve_param.
     """
-    input_blocks = []
-    tf_blocks = []
-    static_blocks = []
-    pid_blocks = []
-    output_blocks = []
-    idx_cursor = 0
-    pv = param_values or PARAM_VALUES
+    def get_numeric(attrs, key):
+        default = INPUT_NUMERIC_DEFAULTS.get(key, 0.0)
+        val = attrs.get(key, default) if attrs else default
+        return parse_float(val, default)
 
+    funcs = {}
     for b in data["blocks"]:
-        bid = b["id"]
-        typ = b["type"]
-        if typ.lower().endswith('connector'):
-            continue
-        if typ == "input":
-            # resolve potential numeric attributes
-            attrs = b.get("attributes", {})
-            b["resolved_attributes"] = resolve_input_attributes(attrs)
-            input_blocks.append(bid)
-        elif typ == "transfer_function":
-            num = b["attributes"]["data-numerator"]
-            den = b["attributes"]["data-denominator"]
-            A, B, C, D = tf_to_ss(num, den, param_values=pv)
-            n = A.shape[0]
-            preds = list(G.predecessors(bid))
-            if not preds:
-                raise ValueError(f"Transfer Function {bid} has no input.")
-            tf_blocks.append({
-                "id": bid, "A": A, "B": B, "C": C, "D": D,
-                "in_id": preds[0],
-                "state_idx": slice(idx_cursor, idx_cursor + n),
-                "order": n
-            })
-            idx_cursor += n
-        elif typ == "pid":
-            attrs = b.get("attributes", {})
-            preds = list(G.predecessors(bid))
-            input_id = preds[0] if preds else None
-            mode = (attrs.get("data-mode") or "PID").upper()
-            kp = resolve_param(attrs.get("data-kp"), default=1.0)
-            has_integral = 'I' in mode
-            has_derivative = 'D' in mode
-            ti_val = resolve_param(attrs.get("data-ti"), default=1.0) if has_integral else None
-            if has_integral and (ti_val is None or abs(ti_val) <= 1e-12):
-                raise ValueError(f"PID {bid} requires T_i != 0.")
-            ki = kp / ti_val if has_integral else 0.0
-            td_val = resolve_param(attrs.get("data-td"), default=0.0) if has_derivative else None
-            if has_derivative and (td_val is None or td_val <= 0):
-                has_derivative = False
-            integral_idx = None
-            derivative_struct = None
-            state_dim = 0
-            if has_integral:
-                integral_idx = slice(idx_cursor, idx_cursor + 1)
-                idx_cursor += 1
-                state_dim += 1
-            if has_derivative:
-                alpha = td_val / PID_D_FILTER_N if PID_D_FILTER_N else td_val
-                if alpha <= 0:
-                    alpha = 1e-6
-                A_d, B_d, C_d, D_d = tf_to_ss([kp * td_val, 0.0], [alpha, 1.0], param_values=pv)
-                order_d = A_d.shape[0]
-                derivative_idx = slice(idx_cursor, idx_cursor + order_d)
-                idx_cursor += order_d
-                state_dim += order_d
-                derivative_struct = {"A": A_d, "B": B_d, "C": C_d, "D": D_d, "idx": derivative_idx}
-            pid_blocks.append({
-                "id": bid, "mode": mode, "Kp": kp, "Ki": ki,
-                "Ti": ti_val if has_integral else None,
-                "Td": td_val if has_derivative else None,
-                "in_id": input_id,
-                "integral_idx": integral_idx,
-                "derivative": derivative_struct,
-                "state_dim": state_dim
-            })
-        elif typ == "gain":
-            attrs = b.get("attributes", {})
-            gain_raw = attrs.get("data-gain", "1")
-            gain_val = resolve_param(gain_raw, default=1.0)
-            static_blocks.append({
-                "id": bid,
-                "type": typ,
-                "gain": gain_val,
-                "raw_gain": gain_raw,
-                "attrs": attrs,
-                "in_ids": list(G.predecessors(bid)),
-                "positions": { (u, bid): G.edges[u, bid].get('position') for u in G.predecessors(bid) }
-            })
-        elif typ == "output":
-            output_blocks.append(bid)
-        else:
-            static_blocks.append({
-                "id": bid,
-                "type": typ,
-                "attrs": b.get("attributes", {}),
-                "in_ids": list(G.predecessors(bid)),
-                "positions": { (u, bid): G.edges[u, bid].get('position') for u in G.predecessors(bid) }
-            })
-    return input_blocks, tf_blocks, static_blocks, pid_blocks, output_blocks, idx_cursor
+        if b["type"] == "input":
+            bid = b["id"]
+            at = b.get("attributes", {})
+            resolved = b.get("resolved_attributes")
+            if resolved is None:
+                resolved = resolve_input_attributes(at)
+
+            sig = (resolved.get("data-signal") or at.get("data-signal") or "step").lower()
+            A = get_numeric(resolved, "data-a")
+            A0 = get_numeric(resolved, "data-a0")
+            t0 = get_numeric(resolved, "data-t0")
+            m_param = get_numeric(resolved, "data-m")
+            f = get_numeric(resolved, "data-f")
+            phase = get_numeric(resolved, "data-phase")
+            off = get_numeric(resolved, "data-offset")
+            if sig == "step":
+                funcs[bid] = lambda t, A=A, A0=A0, t0=t0: A if t >= t0 else A0
+            elif sig == "impulse":
+                eps = 1e-3
+                funcs[bid] = lambda t, A=A, A0=A0, t0=t0, eps=eps: A / eps if abs(t - t0) < eps else A0
+            elif sig == "ramp":
+                funcs[bid] = lambda t, A0=A0, m_param=m_param, t0=t0: A0 + m_param * (t - t0) if t >= t0 else A0
+            elif sig == "sine":
+                funcs[bid] = lambda t, A=A, f=f, phase=phase, off=off, t0=t0, A0=A0: A * np.sin(
+                    2 * np.pi * f * (t - t0) + phase) + off if t >= t0 else A0
+            elif sig == "square":
+                funcs[bid] = lambda t, A=A, f=f, phase=phase, off=off, t0=t0, A0=A0: A * np.sign(
+                    np.sin(2 * np.pi * f * (t - t0) + phase)) + off if t >= t0 else A0
+            elif sig == "triangle":
+                funcs[bid] = lambda t, A=A, f=f, off=off, t0=t0, A0=A0: A * (
+                        2 * abs(2 * ((f * (t - t0)) % 1) - 1) - 1) + off if t >= t0 else A0
+            else:
+                raise ValueError(f"Unsupported signal '{sig}'")
+    return funcs
 
 
 def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_states):
@@ -540,52 +588,6 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
     return w_ids, w_index, M_inv, P_u_terms, H
 
 
-def generate_input_signal(data):
-    """
-    Generate Python functions for Input signals (step, impulse, ramp, sine, square, triangle)
-    using attributes already resolved via set_parameters()/resolve_param.
-    """
-    def get_numeric(attrs, key):
-        default = INPUT_NUMERIC_DEFAULTS.get(key, 0.0)
-        val = attrs.get(key, default) if attrs else default
-        return parse_float(val, default)
-
-    funcs = {}
-    for b in data["blocks"]:
-        if b["type"] == "input":
-            bid = b["id"]
-            at = b.get("attributes", {})
-            resolved = b.get("resolved_attributes")
-            if resolved is None:
-                resolved = resolve_input_attributes(at)
-
-            sig = (resolved.get("data-signal") or at.get("data-signal") or "step").lower()
-            A = get_numeric(resolved, "data-a")
-            A0 = get_numeric(resolved, "data-a0")
-            t0 = get_numeric(resolved, "data-t0")
-            m_param = get_numeric(resolved, "data-m")
-            f = get_numeric(resolved, "data-f")
-            phase = get_numeric(resolved, "data-phase")
-            off = get_numeric(resolved, "data-offset")
-            if sig == "step":
-                funcs[bid] = lambda t, A=A, A0=A0, t0=t0: A if t >= t0 else A0
-            elif sig == "impulse":
-                eps = 1e-3
-                funcs[bid] = lambda t, A=A, A0=A0, t0=t0, eps=eps: A / eps if abs(t - t0) < eps else A0
-            elif sig == "ramp":
-                funcs[bid] = lambda t, A0=A0, m_param=m_param, t0=t0: A0 + m_param * (t - t0) if t >= t0 else A0
-            elif sig == "sine":
-                funcs[bid] = lambda t, A=A, f=f, phase=phase, off=off, t0=t0, A0=A0: A * np.sin(
-                    2 * np.pi * f * (t - t0) + phase) + off if t >= t0 else A0
-            elif sig == "square":
-                funcs[bid] = lambda t, A=A, f=f, phase=phase, off=off, t0=t0, A0=A0: A * np.sign(
-                    np.sin(2 * np.pi * f * (t - t0) + phase)) + off if t >= t0 else A0
-            elif sig == "triangle":
-                funcs[bid] = lambda t, A=A, f=f, off=off, t0=t0, A0=A0: A * (
-                        2 * abs(2 * ((f * (t - t0)) % 1) - 1) - 1) + off if t >= t0 else A0
-            else:
-                raise ValueError(f"Unsupported signal '{sig}'")
-    return funcs
 
 
 def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_terms, H):
