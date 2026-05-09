@@ -478,7 +478,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
     - u represents external input signals.
     - M captures how internal signals depend on other internal signals.
     - H captures how internal signals depend on states.
-    - P is stored sparsely as `P_u_terms`, because external inputs are easier to evaluate by name than by building a dense matrix.
+    - P is stored sparsely as `P_u`, because external inputs are easier to evaluate by name than by building a dense matrix.
 
     The returned inverse M_inv is later used inside compute_rhs() to recover w(t) at each time instant before assembling dx/dt.
     """
@@ -491,7 +491,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
     # Start from w_i on the left-hand side, then move dependencies to M, H and P.
     M = np.eye(len(w_ids))
     H = np.zeros((len(w_ids), n_states))
-    P_u_terms = {i: [] for i in range(len(w_ids))}
+    P_u = {i: [] for i in range(len(w_ids))}
 
     for block in static_blocks:
         i = w_index[block["id"]]
@@ -517,7 +517,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
             if src in w_index:
                 M[i, w_index[src]] = -gain
             else:
-                P_u_terms[i].append((src, gain))
+                P_u[i].append((src, gain))
 
         elif block["type"] == "operation":
             op1 = block["attrs"].get("data-operator-1", "+").strip()
@@ -534,14 +534,14 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
                 if src in w_index:
                     M[i, w_index[src]] = -coeff
                 else:
-                    P_u_terms[i].append((src, coeff))
+                    P_u[i].append((src, coeff))
         else:
             for src in inputs:
                 # Passthrough-like blocks simply copy incoming signals.
                 if src in w_index:
                     M[i, w_index[src]] = -1.0
                 else:
-                    P_u_terms[i].append((src, 1.0))
+                    P_u[i].append((src, 1.0))
 
     for tf in tf_blocks:
         i = w_index[tf["id"]]
@@ -552,7 +552,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
         if src in w_index:
             M[i, w_index[src]] = -D
         else:
-            P_u_terms[i].append((src, D))
+            P_u[i].append((src, D))
         # The state-dependent output term C*x contributes through H.
         H[i, tf["state_idx"]] = tf["C"].flatten()
 
@@ -565,7 +565,7 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
         if src in w_index:
             M[i, w_index[src]] = M[i, w_index[src]] - kp
         elif src is not None:
-            P_u_terms[i].append((src, kp))
+            P_u[i].append((src, kp))
 
         # The integral state contributes to the PID output through Ki * x_I.
         if pid["integral_idx"] is not None:
@@ -581,16 +581,16 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
                 if src in w_index:
                     M[i, w_index[src]] = M[i, w_index[src]] - D
                 elif src is not None:
-                    P_u_terms[i].append((src, D))
+                    P_u[i].append((src, D))
 
     M_inv = np.linalg.inv(M)
 
-    return w_ids, w_index, M_inv, P_u_terms, H
+    return w_ids, w_index, M_inv, P_u, H
 
 
 
 
-def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_terms, H):
+def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u, H):
     """
     Build the function dx/dt = f(t, x) used by solve_ivp().
 
@@ -600,7 +600,7 @@ def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_ter
     - w_ids: list of block IDs whose internal algebraic signals compose w(t)
     - w_index: mapping from block ID to row index in M
     - M_inv: inverse of M matrix (algebraic solver)
-    - P_u_terms: external input contributions associated with P * u
+    - P_u: external input contributions associated with P * u
     - H: matrix multiplying state vector x(t) in the algebraic subsystem
 
     Returns:
@@ -612,7 +612,7 @@ def compute_rhs(u_signals, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_ter
 
         # Add the external input contributions. P is stored sparsely as named
         # signal references plus coefficients, so we evaluate each u_i(t) here.
-        for i, u_terms in P_u_terms.items():
+        for i, u_terms in P_u.items():
             for u_id, coeff in u_terms:
                 func = u_signals.get(u_id)
                 Hx_plus_Pu[i] += coeff * func(t) if func else 0.0
@@ -672,10 +672,10 @@ def run_simulation(data, step_size=0.001, simulation_time=10, param_values=None)
         data, G, param_values=param_values
     )
     input_signal_funcs = generate_input_signal(data)
-    w_ids, w_index, M_inv, P_u_terms, H = build_solver(
+    w_ids, w_index, M_inv, P_u, H = build_solver(
         input_blocks, static_blocks, tf_blocks, pid_blocks, total_states
     )
-    rhs = compute_rhs(input_signal_funcs, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u_terms, H)
+    rhs = compute_rhs(input_signal_funcs, tf_blocks, pid_blocks, w_ids, w_index, M_inv, P_u, H)
     x0 = np.zeros(H.shape[1])
     t_eval = np.arange(0, simulation_time, step_size)
     sol = solve_ivp(rhs, (0, simulation_time), x0, t_eval=t_eval)
@@ -683,7 +683,7 @@ def run_simulation(data, step_size=0.001, simulation_time=10, param_values=None)
     out_sources = {output_id: list(G.predecessors(output_id))[0] for output_id in output_blocks}
     for k, t_k in enumerate(sol.t):
         Hx_plus_Pu = H.dot(sol.y[:, k])
-        for i, entries in P_u_terms.items():
+        for i, entries in P_u.items():
             for input_id, coeff in entries:
                 func = input_signal_funcs.get(input_id)
                 Hx_plus_Pu[i] += coeff * func(t_k) if func else 0.0
