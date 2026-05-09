@@ -430,11 +430,9 @@ def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_state
     - u represents external input signals.
     - M captures how internal signals depend on other internal signals.
     - H captures how internal signals depend on states.
-    - P is stored sparsely as `P_u_terms`, because external inputs are easier
-      to evaluate by name than by building a dense matrix.
+    - P is stored sparsely as `P_u_terms`, because external inputs are easier to evaluate by name than by building a dense matrix.
 
-    The returned inverse M_inv is later used inside compute_rhs() to recover
-    w(t) at each time instant before assembling dx/dt.
+    The returned inverse M_inv is later used inside compute_rhs() to recover w(t) at each time instant before assembling dx/dt.
     """
     # Only blocks that can appear as algebraic signal sources belong to w.
     # External input blocks are not part of w; they are evaluated separately.
