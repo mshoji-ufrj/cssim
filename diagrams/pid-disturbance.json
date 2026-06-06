@@ -50,27 +50,6 @@
       ]
     },
     {
-      "id": "Block2",
-      "type": "transfer_function",
-      "x": 255,
-      "y": 269,
-      "attributes": {
-        "data-denominator": "s",
-        "data-name": "Controlador PID",
-        "data-numerator": "K*(0.065*s^2 + 0.29375*s + 1)"
-      },
-      "connectors": [
-        {
-          "position": "left",
-          "id": "Block2_connector_left"
-        },
-        {
-          "position": "right",
-          "id": "Block2_connector_right"
-        }
-      ]
-    },
-    {
       "id": "Block3",
       "type": "operation",
       "x": 419,
@@ -176,6 +155,30 @@
           "id": "Block9_connector_left"
         }
       ]
+    },
+    {
+      "id": "Block10",
+      "type": "pid",
+      "x": 259,
+      "y": 268,
+      "attributes": {
+        "data-name": "Controlador PID",
+        "data-mode": "PID",
+        "data-kp": "Kp",
+        "data-ti": "Ti",
+        "data-td": "Td",
+        "data-filter-n": ""
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block10_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block10_connector_right"
+        }
+      ]
     }
   ],
   "connections": [
@@ -212,66 +215,6 @@
         ],
         [
           172.5,
-          300.00000762939453
-        ]
-      ],
-      "arrow": true
-    },
-    {
-      "id": "Connection2",
-      "from": {
-        "type": "block-connector",
-        "blockId": "Block1",
-        "position": "right",
-        "id": "Block1_connector_right"
-      },
-      "to": {
-        "type": "block-connector",
-        "blockId": "Block2",
-        "position": "left",
-        "id": "Block2_connector_left"
-      },
-      "path": [
-        [
-          223.5,
-          300.00000762939453
-        ],
-        [
-          223.5,
-          301.00000762939453
-        ],
-        [
-          256.5,
-          301.00000762939453
-        ]
-      ],
-      "arrow": true
-    },
-    {
-      "id": "Connection3",
-      "from": {
-        "type": "block-connector",
-        "blockId": "Block2",
-        "position": "right",
-        "id": "Block2_connector_right"
-      },
-      "to": {
-        "type": "block-connector",
-        "blockId": "Block3",
-        "position": "left",
-        "id": "Block3_connector_left"
-      },
-      "path": [
-        [
-          377.5,
-          301.00000762939453
-        ],
-        [
-          377.5,
-          300.00000762939453
-        ],
-        [
-          420.5,
           300.00000762939453
         ]
       ],
@@ -441,6 +384,66 @@
         [
           446,
           274.50000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection15",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "right",
+        "id": "Block1_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block10",
+        "position": "left",
+        "id": "Block10_connector_left"
+      },
+      "path": [
+        [
+          223.5,
+          300.00000762939453
+        ],
+        [
+          223.5,
+          300.00000762939453
+        ],
+        [
+          260.5,
+          300.00000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection16",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block10",
+        "position": "right",
+        "id": "Block10_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block3",
+        "position": "left",
+        "id": "Block3_connector_left"
+      },
+      "path": [
+        [
+          381.5,
+          300.00000762939453
+        ],
+        [
+          381.5,
+          300.00000762939453
+        ],
+        [
+          420.5,
+          300.00000762939453
         ]
       ],
       "arrow": true
