@@ -395,6 +395,9 @@
       addConnector(connector) {
         this.connectors.push(connector);
       }
+      removeConnector(connector) {
+        this.connectors = this.connectors.filter(existing => existing !== connector);
+      }
     }
 
     class Connection {
@@ -1488,15 +1491,18 @@
         const position = positionSelect.value;
         const bottomConnector = block.querySelector('.connector.bottom');
         const topConnector = block.querySelector('.connector.top');
+        const blockObj = this.blocks.find(candidate => candidate.element === block);
         if (position === 'bottom' && !bottomConnector) {
           if (topConnector) {
             this.deleteConnectionsForConnector(topConnector);
+            if (blockObj) blockObj.removeConnector(topConnector);
             topConnector.remove();
           }
           this.addOperationConnector(block, 'bottom');
         } else if (position === 'top' && !topConnector) {
           if (bottomConnector) {
             this.deleteConnectionsForConnector(bottomConnector);
+            if (blockObj) blockObj.removeConnector(bottomConnector);
             bottomConnector.remove();
           }
           this.addOperationConnector(block, 'top');
@@ -1513,8 +1519,11 @@
       addOperationConnector(block, position) {
         const connector = document.createElement('div');
         connector.classList.add('connector', position, block.id); // Add block ID to classList
+        connector.id = `${block.id}_connector_${position}`;
         block.appendChild(connector);
         connector.addEventListener('mousedown', (event) => this.startConnection(event));
+        const blockObj = this.blocks.find(candidate => candidate.element === block);
+        if (blockObj) blockObj.addConnector(connector);
       }
 
       logDiagram() {
@@ -1530,6 +1539,7 @@
               attributes[attr.name] = attr.value;
             }
           });
+          const connectors = Array.from(block.element.querySelectorAll('.connector'));
         return {
             id: block.id,
             type: block.type,
@@ -1537,7 +1547,7 @@
             x: parseFloat(block.element.style.left) || 0,
             y: parseFloat(block.element.style.top) || 0,
             attributes: attributes,
-            connectors: block.connectors.map(connector => ({
+            connectors: connectors.map(connector => ({
               position: Array.from(connector.classList).find(cls => ['left', 'right', 'top', 'bottom'].includes(cls)) || 'unknown',
               id: connector.id || null
             }))

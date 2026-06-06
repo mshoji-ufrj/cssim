@@ -1,0 +1,451 @@
+{
+  "blocks": [
+    {
+      "id": "Block0",
+      "type": "input",
+      "x": 37,
+      "y": 268,
+      "attributes": {
+        "data-a": "",
+        "data-a0": "",
+        "data-f": "",
+        "data-m": "",
+        "data-name": "Entrada",
+        "data-offset": "",
+        "data-phase": "",
+        "data-signal": "step",
+        "data-t0": ""
+      },
+      "connectors": [
+        {
+          "position": "right",
+          "id": "Block0_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block1",
+      "type": "operation",
+      "x": 171,
+      "y": 273,
+      "attributes": {
+        "data-name": "",
+        "data-operator-1": "+",
+        "data-operator-2": "-",
+        "data-position": "bottom"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block1_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block1_connector_right"
+        },
+        {
+          "position": "bottom",
+          "id": "Block1_connector_bottom"
+        }
+      ]
+    },
+    {
+      "id": "Block2",
+      "type": "transfer_function",
+      "x": 255,
+      "y": 269,
+      "attributes": {
+        "data-denominator": "s",
+        "data-name": "Controlador PID",
+        "data-numerator": "K*(a*s+1)*(b*s+1)"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block2_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block2_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block3",
+      "type": "operation",
+      "x": 419,
+      "y": 273,
+      "attributes": {
+        "data-name": "",
+        "data-operator-1": "+",
+        "data-operator-2": "+",
+        "data-position": "top"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block3_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block3_connector_right"
+        },
+        {
+          "position": "top",
+          "id": "Block3_connector_top"
+        }
+      ]
+    },
+    {
+      "id": "Block4",
+      "type": "transfer_function",
+      "x": 508,
+      "y": 269,
+      "attributes": {
+        "data-denominator": "s^2+3.6*s+9",
+        "data-name": "Planta G(s)",
+        "data-numerator": "1"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block4_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block4_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block6",
+      "type": "input",
+      "x": 292,
+      "y": 156,
+      "attributes": {
+        "data-a": "",
+        "data-a0": "",
+        "data-f": "",
+        "data-m": "",
+        "data-name": "D(s)",
+        "data-offset": "",
+        "data-phase": "",
+        "data-signal": "step",
+        "data-t0": ""
+      },
+      "connectors": [
+        {
+          "position": "right",
+          "id": "Block6_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block7",
+      "type": "text",
+      "x": 131,
+      "y": 263,
+      "attributes": {
+        "data-name": "",
+        "data-text": "R(s)"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block8",
+      "type": "text",
+      "x": 648,
+      "y": 268,
+      "attributes": {
+        "data-name": "",
+        "data-text": "C(s)"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block9",
+      "type": "output",
+      "x": 686,
+      "y": 270,
+      "attributes": {
+        "data-name": "Saída"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block9_connector_left"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "Connection1",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block0",
+        "position": "right",
+        "id": "Block0_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "left",
+        "id": "Block1_connector_left"
+      },
+      "path": [
+        [
+          129.5,
+          300.00000762939453
+        ],
+        [
+          165,
+          300.00000762939453
+        ],
+        [
+          165,
+          298.66666412353516
+        ],
+        [
+          165,
+          300.00000762939453
+        ],
+        [
+          172.5,
+          300.00000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection2",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "right",
+        "id": "Block1_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block2",
+        "position": "left",
+        "id": "Block2_connector_left"
+      },
+      "path": [
+        [
+          223.5,
+          300.00000762939453
+        ],
+        [
+          223.5,
+          301.00000762939453
+        ],
+        [
+          256.5,
+          301.00000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection3",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block2",
+        "position": "right",
+        "id": "Block2_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block3",
+        "position": "left",
+        "id": "Block3_connector_left"
+      },
+      "path": [
+        [
+          377.5,
+          301.00000762939453
+        ],
+        [
+          377.5,
+          300.00000762939453
+        ],
+        [
+          420.5,
+          300.00000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection4",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block3",
+        "position": "right",
+        "id": "Block3_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block4",
+        "position": "left",
+        "id": "Block4_connector_left"
+      },
+      "path": [
+        [
+          471.5,
+          300.00000762939453
+        ],
+        [
+          471.5,
+          301.00000762939453
+        ],
+        [
+          509.5,
+          301.00000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection10",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block4",
+        "position": "right",
+        "id": "Block4_connector_right"
+      },
+      "to": {
+        "type": "line-connector",
+        "id": "lineConnector3"
+      },
+      "path": [
+        [
+          630.5,
+          301.00000762939453
+        ],
+        [
+          630.5,
+          302.00000762939453
+        ],
+        [
+          644,
+          302.00000762939453
+        ],
+        [
+          649,
+          302.00000762939453
+        ]
+      ],
+      "arrow": false
+    },
+    {
+      "id": "Connection12",
+      "from": {
+        "type": "line-connector",
+        "id": "lineConnector3"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block9",
+        "position": "left",
+        "id": "Block9_connector_left"
+      },
+      "path": [
+        [
+          649,
+          302.00000762939453
+        ],
+        [
+          687.5,
+          302.00000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection13",
+      "from": {
+        "type": "line-connector",
+        "id": "lineConnector3"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "bottom",
+        "id": "Block1_connector_bottom"
+      },
+      "path": [
+        [
+          649,
+          302.00000762939453
+        ],
+        [
+          649,
+          300.66666412353516
+        ],
+        [
+          649,
+          300.66666412353516
+        ],
+        [
+          649,
+          394.66666412353516
+        ],
+        [
+          634,
+          394.66666412353516
+        ],
+        [
+          198,
+          394.66666412353516
+        ],
+        [
+          198,
+          325.50000762939453
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection14",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block6",
+        "position": "right",
+        "id": "Block6_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block3",
+        "position": "top",
+        "id": "Block3_connector_top"
+      },
+      "path": [
+        [
+          384.5,
+          188.00000762939453
+        ],
+        [
+          430,
+          188.00000762939453
+        ],
+        [
+          430,
+          194.66666412353516
+        ],
+        [
+          446,
+          194.66666412353516
+        ],
+        [
+          446,
+          274.50000762939453
+        ]
+      ],
+      "arrow": true
+    }
+  ],
+  "sim_time": 10,
+  "step_size": 0.001
+}
