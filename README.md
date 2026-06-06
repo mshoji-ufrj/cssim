@@ -56,7 +56,13 @@ The browser should open automatically; if not, copy the URL printed in the termi
 - Inside the notebook, run the cells in order to start the GUI (`open_gui(...)`) and explore the diagrams.
 - Always keep the virtualenv activated before running scripts or notebooks to ensure the correct package versions are used.
 
-## 8. Monitoramento de hardware com `psutil`
+## 8. PID derivative support
+- The PID block implements derivative action as a realizable filtered term with an internal filter coefficient.
+- `PD` and `PID` blocks therefore use $K_p \left(1 + \frac{T_d s}{(T_d / N) s + 1}\right)$ or the corresponding PID form, instead of an ideal derivative.
+- Ideal derivative action is not supported by the current solver.
+- Generic improper transfer functions in the `transfer_function` block are still outside the current implementation scope.
+
+## 9. Monitoramento de hardware com `psutil`
 Para registrar o uso de hardware enquanto o notebook `cssim_notebook.ipynb` estiver em uso, execute:
 
 ```bash

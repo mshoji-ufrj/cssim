@@ -12,6 +12,7 @@ from IPython.display import display
 from IPython import get_ipython
 
 PID_D_FILTER_N = 100.0
+PID_SUPPORTED_MODES = {"P", "PI", "PD", "PID"}
 
 # ==== PARAM STORAGE (formerly TF_PARAM_VALUES) ====
 PARAM_VALUES = {}
@@ -35,7 +36,7 @@ def set_parameters(params=None, **kwargs):
     }
     PARAM_VALUES.update(filtered)
 
-def resolve_param(expr, allow_s=False, default=None):
+def resolve_param(expr, allow_s=False, default=None, param_values=None):
     """
     Convert expr (None | '' | number | string expression) to float using PARAM_VALUES.
     - allow_s=True only for Transfer Function (Laplace).
@@ -55,7 +56,8 @@ def resolve_param(expr, allow_s=False, default=None):
         pass
     # symbolic parser
     import sympy as sp
-    syms_map = {k: v for k, v in PARAM_VALUES.items()}
+    resolved_params = param_values or PARAM_VALUES
+    syms_map = {k: v for k, v in resolved_params.items()}
     if allow_s:
         syms_map['s'] = sp.Symbol('s')
     if 't' in txt:
@@ -107,13 +109,13 @@ INPUT_NUMERIC_DEFAULTS = {
 }
 
 
-def resolve_input_attributes(attrs):
+def resolve_input_attributes(attrs, param_values=None):
     """Return numeric-ready attributes for an input block using parameter store."""
     resolved = {}
     for key, default in INPUT_NUMERIC_DEFAULTS.items():
         raw = attrs.get(key)
         try:
-            resolved[key] = resolve_param(raw, allow_s=False, default=default)
+            resolved[key] = resolve_param(raw, allow_s=False, default=default, param_values=param_values)
         except Exception:
             resolved[key] = parse_float(raw, default)
 
@@ -123,6 +125,18 @@ def resolve_input_attributes(attrs):
             resolved[key] = value
 
     return resolved
+
+
+def resolve_pid_derivative_filter(attrs):
+    """Resolve the derivative filter coefficient N for realizable PID blocks."""
+    raw_filter = attrs.get("data-filter-n", PID_D_FILTER_N)
+    filter_n = resolve_param(raw_filter, default=PID_D_FILTER_N)
+    if not np.isfinite(filter_n) or filter_n <= 0:
+        raise ValueError(
+            "PID derivative filter N must be a finite positive value. "
+            "Ideal derivative is not supported; configure a positive filter N."
+        )
+    return filter_n
 
 
 def load_json(path):
@@ -216,7 +230,7 @@ def categorize_blocks(data, G, param_values=None):
         if typ == "input":
             # resolve potential numeric attributes
             attrs = b.get("attributes", {})
-            b["resolved_attributes"] = resolve_input_attributes(attrs)
+            b["resolved_attributes"] = resolve_input_attributes(attrs, param_values=pv)
             input_blocks.append(bid)
         elif typ == "transfer_function":
             num = b["attributes"]["data-numerator"]
@@ -237,17 +251,25 @@ def categorize_blocks(data, G, param_values=None):
             attrs = b.get("attributes", {})
             preds = list(G.predecessors(bid))
             input_id = preds[0] if preds else None
-            mode = (attrs.get("data-mode") or "PID").upper()
-            kp = resolve_param(attrs.get("data-kp"), default=1.0)
+            mode = (attrs.get("data-mode") or "PID").upper().strip()
+            if mode not in PID_SUPPORTED_MODES:
+                raise ValueError(
+                    f"PID {bid} uses unsupported mode '{mode}'. Supported modes: {', '.join(sorted(PID_SUPPORTED_MODES))}."
+                )
+            kp = resolve_param(attrs.get("data-kp"), default=1.0, param_values=pv)
             has_integral = 'I' in mode
             has_derivative = 'D' in mode
-            ti_val = resolve_param(attrs.get("data-ti"), default=1.0) if has_integral else None
+            ti_val = resolve_param(attrs.get("data-ti"), default=1.0, param_values=pv) if has_integral else None
             if has_integral and (ti_val is None or abs(ti_val) <= 1e-12):
                 raise ValueError(f"PID {bid} requires T_i != 0.")
             ki = kp / ti_val if has_integral else 0.0
-            td_val = resolve_param(attrs.get("data-td"), default=0.0) if has_derivative else None
-            if has_derivative and (td_val is None or td_val <= 0):
-                has_derivative = False
+            td_val = None
+            filter_n = None
+            if has_derivative:
+                td_val = resolve_param(attrs.get("data-td"), default=None, param_values=pv)
+                if td_val is None or not np.isfinite(td_val) or td_val <= 0:
+                    raise ValueError(f"PID {bid} requires a finite T_d > 0 when derivative action is enabled.")
+                filter_n = resolve_pid_derivative_filter(attrs)
             integral_idx = None
             derivative_struct = None
             state_dim = 0
@@ -256,7 +278,7 @@ def categorize_blocks(data, G, param_values=None):
                 idx_cursor += 1
                 state_dim += 1
             if has_derivative:
-                alpha = td_val / PID_D_FILTER_N if PID_D_FILTER_N else td_val
+                alpha = td_val / filter_n
                 if alpha <= 0:
                     alpha = 1e-6
                 A_d, B_d, C_d, D_d = tf_to_ss([kp * td_val, 0.0], [alpha, 1.0], param_values=pv)
@@ -264,11 +286,20 @@ def categorize_blocks(data, G, param_values=None):
                 derivative_idx = slice(idx_cursor, idx_cursor + order_d)
                 idx_cursor += order_d
                 state_dim += order_d
-                derivative_struct = {"A": A_d, "B": B_d, "C": C_d, "D": D_d, "idx": derivative_idx}
+                derivative_struct = {
+                    "A": A_d,
+                    "B": B_d,
+                    "C": C_d,
+                    "D": D_d,
+                    "idx": derivative_idx,
+                    "filter_n": filter_n,
+                    "alpha": alpha,
+                }
             pid_blocks.append({
                 "id": bid, "mode": mode, "Kp": kp, "Ki": ki,
                 "Ti": ti_val if has_integral else None,
                 "Td": td_val if has_derivative else None,
+                "filter_n": filter_n,
                 "in_id": input_id,
                 "integral_idx": integral_idx,
                 "derivative": derivative_struct,

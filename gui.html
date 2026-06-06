@@ -377,7 +377,8 @@
         'data-mode': 'PID',
         'data-kp': '',
         'data-ti': '',
-        'data-td': ''
+        'data-td': '',
+        'data-filter-n': '100'
       }),
       'text': Object.freeze({
         'data-text': 'Text'
@@ -600,6 +601,7 @@
           block.setAttribute('data-kp', '');
           block.setAttribute('data-ti', '');
           block.setAttribute('data-td', '');
+          block.setAttribute('data-filter-n', '100');
         } else if (blockType === 'text') {
           block.setAttribute('data-text', 'Text');
         }

@@ -6,15 +6,15 @@
       "x": 37,
       "y": 268,
       "attributes": {
-        "data-a": "",
-        "data-a0": "",
+        "data-a": "1",
+        "data-a0": "0",
         "data-f": "",
         "data-m": "",
         "data-name": "Entrada",
         "data-offset": "",
         "data-phase": "",
         "data-signal": "step",
-        "data-t0": ""
+        "data-t0": "0"
       },
       "connectors": [
         {
@@ -57,7 +57,7 @@
       "attributes": {
         "data-denominator": "s",
         "data-name": "Controlador PID",
-        "data-numerator": "K*(a*s+1)*(b*s+1)"
+        "data-numerator": "K*(0.065*s^2 + 0.29375*s + 1)"
       },
       "connectors": [
         {
@@ -123,15 +123,15 @@
       "x": 292,
       "y": 156,
       "attributes": {
-        "data-a": "",
-        "data-a0": "",
+        "data-a": "1",
+        "data-a0": "0",
         "data-f": "",
         "data-m": "",
         "data-name": "D(s)",
         "data-offset": "",
         "data-phase": "",
         "data-signal": "step",
-        "data-t0": ""
+        "data-t0": "0"
       },
       "connectors": [
         {
