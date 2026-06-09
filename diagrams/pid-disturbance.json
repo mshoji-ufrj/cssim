@@ -162,12 +162,12 @@
       "x": 259,
       "y": 268,
       "attributes": {
-        "data-name": "Controlador PID",
-        "data-mode": "PID",
+        "data-filter-n": "",
         "data-kp": "Kp",
-        "data-ti": "Ti",
+        "data-mode": "PID",
+        "data-name": "Controlador PID",
         "data-td": "Td",
-        "data-filter-n": ""
+        "data-ti": "Ti"
       },
       "connectors": [
         {
