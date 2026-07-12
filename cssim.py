@@ -150,7 +150,7 @@ def build_graph(data):
     Build a directed graph from block diagram JSON, collapsing "line-connector" nodes.
     Resulting edges connect blocks directly, preserving connector positions.
     """
-    G = nx.DiGraph()
+    G = nx.MultiDiGraph()
     # Add all blocks as nodes (including connectors temporarily)
     for b in data["blocks"]:
         G.add_node(b["id"], **b)
@@ -180,27 +180,80 @@ def build_graph(data):
     return G
 
 
-# Draw graph with node IDs
-def draw_graph(G):
-    pos = nx.spring_layout(G, seed=42)
-    labels = {node: str(node) for node in G.nodes}
-    plt.figure()
-    nx.draw(
+# Draw graph with block names/types, IDs and curved edges
+def draw_graph(G, seed=42):
+    pos = nx.spring_layout(G, seed=seed)
+    node_labels = {}
+    parameter_labels = {}
+
+    for node, data in G.nodes(data=True):
+        attrs = data.get("attributes", {}) or {}
+        node_labels[node] = attrs.get("data-name") or data.get("name") or data.get("type") or str(node)
+        parameters = [("id", node), ("type", data.get("type")), *attrs.items()]
+        parameter_labels[node] = "\n".join(
+            f"{key}: {value}" for key, value in parameters if value not in (None, "")
+        )
+
+    node_size = 2200
+    node_radius_pts = np.sqrt(node_size / np.pi)
+    label_gap_pts = 8
+
+    fig, ax = plt.subplots(figsize=(14, 9))
+    nx.draw_networkx_nodes(
         G,
         pos,
-        labels=labels,
-        with_labels=True,
         node_color='lightblue',
-        edge_color='gray',
-        node_size=1500,
-        font_size=9,
-        font_weight='normal',
-        arrows=True,
-        arrowstyle='-|>',
-        arrowsize=20
+        node_size=node_size,
+        node_shape='o',
+        ax=ax
     )
-    plt.title("Graph")
-    plt.axis("off")
+
+    graph_edges = G.edges(keys=True) if G.is_multigraph() else G.edges()
+    for edge in graph_edges:
+        source, target = edge[:2]
+        nx.draw_networkx_edges(
+            G,
+            pos,
+            edgelist=[(source, target)],
+            edge_color='gray',
+            arrows=True,
+            arrowstyle='-|>',
+            arrowsize=34,
+            connectionstyle='arc3,rad=0.18',
+            min_source_margin=22,
+            min_target_margin=24,
+            ax=ax
+        )
+
+    nx.draw_networkx_labels(
+        G,
+        pos,
+        labels=node_labels,
+        font_size=8,
+        font_weight='bold',
+        ax=ax
+    )
+
+    attr_box = {
+        'facecolor': 'white',
+        'edgecolor': 'gray',
+        'boxstyle': 'round,pad=0.25',
+        'alpha': 0.9,
+    }
+    for node, label in parameter_labels.items():
+        ax.annotate(
+            label,
+            xy=pos[node],
+            xytext=(0, -(node_radius_pts + label_gap_pts)),
+            textcoords='offset points',
+            fontsize=8,
+            ha='center',
+            va='top',
+            bbox=attr_box
+        )
+    ax.set_title("Graph")
+    ax.axis("off")
+    ax.margins(0.35)
     plt.show()
 
 
@@ -221,6 +274,12 @@ def categorize_blocks(data, G, param_values=None):
     output_blocks = []
     idx_cursor = 0
     pv = param_values or PARAM_VALUES
+
+    def edge_position(source, target):
+        if G.is_multigraph():
+            edge_data = G.get_edge_data(source, target, default={})
+            return next((attrs.get('position') for attrs in edge_data.values()), None)
+        return G.edges[source, target].get('position')
 
     for b in data["blocks"]:
         bid = b["id"]
@@ -316,7 +375,7 @@ def categorize_blocks(data, G, param_values=None):
                 "raw_gain": gain_raw,
                 "attrs": attrs,
                 "in_ids": list(G.predecessors(bid)),
-                "positions": { (u, bid): G.edges[u, bid].get('position') for u in G.predecessors(bid) }
+                "positions": { (u, bid): edge_position(u, bid) for u in G.predecessors(bid) }
             })
         elif typ == "output":
             output_blocks.append(bid)
@@ -326,7 +385,7 @@ def categorize_blocks(data, G, param_values=None):
                 "type": typ,
                 "attrs": b.get("attributes", {}),
                 "in_ids": list(G.predecessors(bid)),
-                "positions": { (u, bid): G.edges[u, bid].get('position') for u in G.predecessors(bid) }
+                "positions": { (u, bid): edge_position(u, bid) for u in G.predecessors(bid) }
             })
     return input_blocks, tf_blocks, static_blocks, pid_blocks, output_blocks, idx_cursor
 
