@@ -531,7 +531,7 @@ def generate_input_signal(data):
                 funcs[bid] = lambda t, A=A, A0=A0, t0=t0: A if t >= t0 else A0
             elif sig == "impulse":
                 eps = 1e-3
-                funcs[bid] = lambda t, A=A, t0=t0, eps=eps: A / eps if abs(t - t0) < eps / 2 else 0.0
+                funcs[bid] = lambda t, A=A, t0=t0, eps=eps: A / eps if t0 <= t < t0 + eps else 0.0
             elif sig == "ramp":
                 funcs[bid] = lambda t, A0=A0, m_param=m_param, t0=t0: A0 + m_param * (t - t0) if t >= t0 else A0
             else:
