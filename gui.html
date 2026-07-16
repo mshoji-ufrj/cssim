@@ -250,8 +250,10 @@
           <label for="input-t0">t0:</label>
           <input type="text" id="input-t0">
           <div id="step-impulse-options" style="display:none;">
-            <label for="input-step-impulse-a0">A0:</label>
-            <input type="text" id="input-step-impulse-a0">
+            <span id="step-impulse-a0-wrapper">
+              <label for="input-step-impulse-a0">A0:</label>
+              <input type="text" id="input-step-impulse-a0">
+            </span>
             <label for="input-step-impulse-a">A:</label>
             <input type="text" id="input-step-impulse-a">
           </div>
@@ -1212,7 +1214,8 @@
         document.getElementById('input-t0').value = this.resolveAttributeValue(block, 'data-t0');
         if (signal === 'step' || signal === 'impulse') {
           document.getElementById('step-impulse-options').style.display = 'block';
-          document.getElementById('input-step-impulse-a0').value = this.resolveAttributeValue(block, 'data-a0');
+          document.getElementById('step-impulse-a0-wrapper').style.display = (signal === 'impulse') ? 'none' : '';
+          document.getElementById('input-step-impulse-a0').value = (signal === 'impulse') ? '' : this.resolveAttributeValue(block, 'data-a0');
           document.getElementById('input-step-impulse-a').value = this.resolveAttributeValue(block, 'data-a');
         } else if (signal === 'ramp') {
           document.getElementById('ramp-options').style.display = 'block';
@@ -1371,7 +1374,9 @@
             this.selectedBlock.setAttribute('data-signal', inputSignal);
             this.selectedBlock.setAttribute('data-t0', document.getElementById('input-t0').value);
             if (inputSignal === 'step' || inputSignal === 'impulse') {
-              this.selectedBlock.setAttribute('data-a0', document.getElementById('input-step-impulse-a0').value);
+              if (inputSignal === 'step') {
+                this.selectedBlock.setAttribute('data-a0', document.getElementById('input-step-impulse-a0').value);
+              }
               this.selectedBlock.setAttribute('data-a', document.getElementById('input-step-impulse-a').value);
             } else if (inputSignal === 'ramp') {
               this.selectedBlock.setAttribute('data-a0', document.getElementById('input-ramp-a0').value);
@@ -1912,6 +1917,7 @@
         });
         if (signal === 'step' || signal === 'impulse') {
           document.getElementById('step-impulse-options').style.display = 'block';
+          document.getElementById('step-impulse-a0-wrapper').style.display = (signal === 'impulse') ? 'none' : '';
         } else if (signal === 'ramp') {
           document.getElementById('ramp-options').style.display = 'block';
         } else if (['sine', 'square', 'triangle'].includes(signal)) {
