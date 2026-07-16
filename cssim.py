@@ -782,6 +782,40 @@ def run_simulation(data, step_size=0.001, simulation_time=10, param_values=None)
     return sol.t, input_signal_funcs, input_blocks, output_out
 
 
+def _collect_impulse_inputs(data_diagram):
+    """Return the set of input block ids configured as ideal impulses.
+
+    Used only to decide whether an input series should participate in the y-axis
+    auto-scale. The simulation still feeds the true rectangular pulse (height
+    A/eps) into the ODE and the plot still draws it faithfully; it just isn't
+    allowed to dictate the y-limits, which would compress the true response.
+    """
+    impulses = set()
+    for b in data_diagram.get("blocks", []):
+        if b.get("type") != "input":
+            continue
+        resolved = b.get("resolved_attributes") or {}
+        attrs = b.get("attributes", {})
+        sig = (resolved.get("data-signal") or attrs.get("data-signal") or "").lower()
+        if sig == "impulse":
+            impulses.add(b["id"])
+    return impulses
+
+
+def _apply_ylim_ignoring_impulses(ax, series_values, margin=0.1):
+    """Set y-limits from the given series (impulses already excluded)."""
+    finite = [v for arr in series_values for v in np.asarray(arr).ravel() if np.isfinite(v)]
+    if not finite:
+        return
+    y_min = min(finite)
+    y_max = max(finite)
+    if y_min == y_max:
+        pad = 1.0 if y_min == 0 else abs(y_min) * 0.1
+    else:
+        pad = (y_max - y_min) * margin
+    ax.set_ylim(y_min - pad, y_max + pad)
+
+
 def plot_signals(t, input_signals, input_blocks, outputs, data_diagram):
     if t is None or input_signals is None or outputs is None or data_diagram is None:
         from cssim_server import last_sim_t, last_sim_outputs, last_sim_inputs, last_sim_input_blocks, last_data_diagram
@@ -796,17 +830,24 @@ def plot_signals(t, input_signals, input_blocks, outputs, data_diagram):
         for b in data_diagram["blocks"]
         if b["type"] in ("input", "output")
     }
+    impulses = _collect_impulse_inputs(data_diagram)
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
+    scale_series = []
     for in_id in input_blocks:
         u = [input_signals[in_id](ti) for ti in t]
         label = id_to_name.get(in_id, in_id)
         ax.plot(t, u, '--', label=label)
+        if in_id not in impulses:
+            scale_series.append(u)
 
     for out_id, y in outputs.items():
         label = id_to_name.get(out_id, out_id)
         ax.plot(t, y, label=label)
+        scale_series.append(y)
+
+    _apply_ylim_ignoring_impulses(ax, scale_series)
 
     ax.set_title("")
     ax.set_xlabel("Time (s)")
@@ -841,6 +882,7 @@ def interactive_plot(t=None, input_signals=None, input_blocks=None, outputs=None
         for b in data_diagram["blocks"]
         if b["type"] in ("input", "output")
     }
+    impulses = _collect_impulse_inputs(data_diagram)
 
     input_checkboxes = {
         in_id: widgets.Checkbox(value=True, description=f"Input: {id_to_name.get(in_id, in_id)}")
@@ -861,17 +903,23 @@ def interactive_plot(t=None, input_signals=None, input_blocks=None, outputs=None
             plot_output.clear_output(wait=True)
             fig, ax = plt.subplots(figsize=(10, 6))
 
+            scale_series = []
             for in_id, cb in input_checkboxes.items():
                 if cb.value:
                     u = [input_signals[in_id](ti) for ti in t]
                     label = id_to_name.get(in_id, in_id)
                     ax.plot(t, u, '--', label=label)
+                    if in_id not in impulses:
+                        scale_series.append(u)
 
             for out_id, cb in output_checkboxes.items():
                 if cb.value:
                     y = outputs[out_id]
                     label = id_to_name.get(out_id, out_id)
                     ax.plot(t, y, label=label)
+                    scale_series.append(y)
+
+            _apply_ylim_ignoring_impulses(ax, scale_series)
 
             ax.set_xlabel("Time (s)")
             ax.set_ylabel("")
