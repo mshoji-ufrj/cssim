@@ -249,13 +249,15 @@
         <div id="input-extra-options" style="display:none; margin-bottom:15px;">
           <label for="input-t0">t0:</label>
           <input type="text" id="input-t0">
-          <div id="step-impulse-options" style="display:none;">
-            <span id="step-impulse-a0-wrapper">
-              <label for="input-step-impulse-a0">A0:</label>
-              <input type="text" id="input-step-impulse-a0">
-            </span>
-            <label for="input-step-impulse-a">A:</label>
-            <input type="text" id="input-step-impulse-a">
+          <div id="step-options" style="display:none;">
+            <label for="input-step-a0">A0:</label>
+            <input type="text" id="input-step-a0">
+            <label for="input-step-a">A:</label>
+            <input type="text" id="input-step-a">
+          </div>
+          <div id="impulse-options" style="display:none;">
+            <label for="input-impulse-a">A:</label>
+            <input type="text" id="input-impulse-a">
           </div>
           <div id="ramp-options" style="display:none;">
             <label for="input-ramp-a0">A0:</label>
@@ -1208,15 +1210,17 @@
         document.getElementById('input-signal').value = signal;
         const extraOptions = document.getElementById('input-extra-options');
         extraOptions.style.display = 'block';
-        ['step-impulse-options', 'ramp-options', 'periodic-options'].forEach(id => {
+        ['step-options', 'impulse-options', 'ramp-options', 'periodic-options'].forEach(id => {
           document.getElementById(id).style.display = 'none';
         });
         document.getElementById('input-t0').value = this.resolveAttributeValue(block, 'data-t0');
-        if (signal === 'step' || signal === 'impulse') {
-          document.getElementById('step-impulse-options').style.display = 'block';
-          document.getElementById('step-impulse-a0-wrapper').style.display = (signal === 'impulse') ? 'none' : '';
-          document.getElementById('input-step-impulse-a0').value = (signal === 'impulse') ? '' : this.resolveAttributeValue(block, 'data-a0');
-          document.getElementById('input-step-impulse-a').value = this.resolveAttributeValue(block, 'data-a');
+        if (signal === 'step') {
+          document.getElementById('step-options').style.display = 'block';
+          document.getElementById('input-step-a0').value = this.resolveAttributeValue(block, 'data-a0');
+          document.getElementById('input-step-a').value = this.resolveAttributeValue(block, 'data-a');
+        } else if (signal === 'impulse') {
+          document.getElementById('impulse-options').style.display = 'block';
+          document.getElementById('input-impulse-a').value = this.resolveAttributeValue(block, 'data-a');
         } else if (signal === 'ramp') {
           document.getElementById('ramp-options').style.display = 'block';
           document.getElementById('input-ramp-a0').value = this.resolveAttributeValue(block, 'data-a0');
@@ -1373,11 +1377,11 @@
             this.selectedBlock.setAttribute('data-name', newName);
             this.selectedBlock.setAttribute('data-signal', inputSignal);
             this.selectedBlock.setAttribute('data-t0', document.getElementById('input-t0').value);
-            if (inputSignal === 'step' || inputSignal === 'impulse') {
-              if (inputSignal === 'step') {
-                this.selectedBlock.setAttribute('data-a0', document.getElementById('input-step-impulse-a0').value);
-              }
-              this.selectedBlock.setAttribute('data-a', document.getElementById('input-step-impulse-a').value);
+            if (inputSignal === 'step') {
+              this.selectedBlock.setAttribute('data-a0', document.getElementById('input-step-a0').value);
+              this.selectedBlock.setAttribute('data-a', document.getElementById('input-step-a').value);
+            } else if (inputSignal === 'impulse') {
+              this.selectedBlock.setAttribute('data-a', document.getElementById('input-impulse-a').value);
             } else if (inputSignal === 'ramp') {
               this.selectedBlock.setAttribute('data-a0', document.getElementById('input-ramp-a0').value);
               // Ramp block no longer uses the A field
@@ -1912,12 +1916,13 @@
         const signal = this.value;
         const extraOptions = document.getElementById('input-extra-options');
         extraOptions.style.display = 'block';
-        ['step-impulse-options', 'ramp-options', 'periodic-options'].forEach(id => {
+        ['step-options', 'impulse-options', 'ramp-options', 'periodic-options'].forEach(id => {
           document.getElementById(id).style.display = 'none';
         });
-        if (signal === 'step' || signal === 'impulse') {
-          document.getElementById('step-impulse-options').style.display = 'block';
-          document.getElementById('step-impulse-a0-wrapper').style.display = (signal === 'impulse') ? 'none' : '';
+        if (signal === 'step') {
+          document.getElementById('step-options').style.display = 'block';
+        } else if (signal === 'impulse') {
+          document.getElementById('impulse-options').style.display = 'block';
         } else if (signal === 'ramp') {
           document.getElementById('ramp-options').style.display = 'block';
         } else if (['sine', 'square', 'triangle'].includes(signal)) {
