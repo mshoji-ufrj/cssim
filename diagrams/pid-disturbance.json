@@ -8,11 +8,8 @@
       "attributes": {
         "data-a": "1",
         "data-a0": "0",
-        "data-f": "",
         "data-m": "",
         "data-name": "Entrada",
-        "data-offset": "",
-        "data-phase": "",
         "data-signal": "step",
         "data-t0": "0"
       },
@@ -104,11 +101,8 @@
       "attributes": {
         "data-a": "1",
         "data-a0": "0",
-        "data-f": "",
         "data-m": "",
         "data-name": "D(s)",
-        "data-offset": "",
-        "data-phase": "",
         "data-signal": "step",
         "data-t0": "0"
       },

@@ -8,11 +8,8 @@
       "attributes": {
         "data-a": "1",
         "data-a0": "0",
-        "data-f": "",
         "data-m": "",
         "data-name": "Entrada Degrau",
-        "data-offset": "",
-        "data-phase": "",
         "data-signal": "step",
         "data-t0": "0"
       },

@@ -241,9 +241,6 @@
             <option value="step" selected>Step</option>
             <option value="impulse">Impulse</option>
             <option value="ramp">Ramp</option>
-            <option value="sine">Sine</option>
-            <option value="square">Square</option>
-            <option value="triangle">Triangle</option>
           </select>
         </div>
         <div id="input-extra-options" style="display:none; margin-bottom:15px;">
@@ -264,16 +261,6 @@
             <input type="text" id="input-ramp-a0">
             <label for="input-ramp-m">m:</label>
             <input type="text" id="input-ramp-m">
-          </div>
-          <div id="periodic-options" style="display:none;">
-            <label for="input-periodic-a">A:</label>
-            <input type="text" id="input-periodic-a">
-            <label for="input-periodic-f">f (Hz):</label>
-            <input type="text" id="input-periodic-f">
-            <label for="input-periodic-phase">Phase (rad):</label>
-            <input type="text" id="input-periodic-phase">
-            <label for="input-periodic-offset">Offset:</label>
-            <input type="text" id="input-periodic-offset">
           </div>
         </div>
       </div>
@@ -363,10 +350,7 @@
         'data-t0': '',
         'data-a0': '',
         'data-a': '',
-        'data-m': '',
-        'data-f': '',
-        'data-phase': '',
-        'data-offset': ''
+        'data-m': ''
       }),
       'operation': Object.freeze({
         'data-operator-1': '+',
@@ -581,9 +565,6 @@
           block.setAttribute('data-a0', '');
           block.setAttribute('data-a', '');
           block.setAttribute('data-m', '');
-          block.setAttribute('data-f', '');
-          block.setAttribute('data-phase', '');
-          block.setAttribute('data-offset', '');
         } else if (blockType === 'transfer_function') {
           block.setAttribute('data-numerator', '');
           block.setAttribute('data-denominator', '');
@@ -1210,7 +1191,7 @@
         document.getElementById('input-signal').value = signal;
         const extraOptions = document.getElementById('input-extra-options');
         extraOptions.style.display = 'block';
-        ['step-options', 'impulse-options', 'ramp-options', 'periodic-options'].forEach(id => {
+        ['step-options', 'impulse-options', 'ramp-options'].forEach(id => {
           document.getElementById(id).style.display = 'none';
         });
         document.getElementById('input-t0').value = this.resolveAttributeValue(block, 'data-t0');
@@ -1226,12 +1207,6 @@
           document.getElementById('input-ramp-a0').value = this.resolveAttributeValue(block, 'data-a0');
           // Ramp block no longer uses the A field
           document.getElementById('input-ramp-m').value = this.resolveAttributeValue(block, 'data-m');
-        } else if (['sine', 'square', 'triangle'].includes(signal)) {
-          document.getElementById('periodic-options').style.display = 'block';
-          document.getElementById('input-periodic-a').value = this.resolveAttributeValue(block, 'data-a');
-          document.getElementById('input-periodic-f').value = this.resolveAttributeValue(block, 'data-f');
-          document.getElementById('input-periodic-phase').value = this.resolveAttributeValue(block, 'data-phase');
-          document.getElementById('input-periodic-offset').value = this.resolveAttributeValue(block, 'data-offset');
         }
       }
 
@@ -1386,11 +1361,6 @@
               this.selectedBlock.setAttribute('data-a0', document.getElementById('input-ramp-a0').value);
               // Ramp block no longer uses the A field
               this.selectedBlock.setAttribute('data-m', document.getElementById('input-ramp-m').value);
-            } else if (['sine', 'square', 'triangle'].includes(inputSignal)) {
-              this.selectedBlock.setAttribute('data-a', document.getElementById('input-periodic-a').value);
-              this.selectedBlock.setAttribute('data-f', document.getElementById('input-periodic-f').value);
-              this.selectedBlock.setAttribute('data-phase', document.getElementById('input-periodic-phase').value);
-              this.selectedBlock.setAttribute('data-offset', document.getElementById('input-periodic-offset').value);
             }
             const blockNameElem = this.selectedBlock.querySelector('.block-name');
             if (blockNameElem) blockNameElem.innerText = newName;
@@ -1916,7 +1886,7 @@
         const signal = this.value;
         const extraOptions = document.getElementById('input-extra-options');
         extraOptions.style.display = 'block';
-        ['step-options', 'impulse-options', 'ramp-options', 'periodic-options'].forEach(id => {
+        ['step-options', 'impulse-options', 'ramp-options'].forEach(id => {
           document.getElementById(id).style.display = 'none';
         });
         if (signal === 'step') {
@@ -1925,8 +1895,6 @@
           document.getElementById('impulse-options').style.display = 'block';
         } else if (signal === 'ramp') {
           document.getElementById('ramp-options').style.display = 'block';
-        } else if (['sine', 'square', 'triangle'].includes(signal)) {
-          document.getElementById('periodic-options').style.display = 'block';
         } else {
           extraOptions.style.display = 'none';
         }

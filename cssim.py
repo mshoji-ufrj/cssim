@@ -103,9 +103,6 @@ INPUT_NUMERIC_DEFAULTS = {
     "data-a0": 0.0,
     "data-t0": 0.0,
     "data-m": 1.0,
-    "data-f": 60.0,
-    "data-phase": 0.0,
-    "data-offset": 0.0,
 }
 
 
@@ -508,7 +505,7 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
 
 def generate_input_signal(data):
     """
-    Generate Python functions for Input signals (step, impulse, ramp, sine, square, triangle)
+    Generate Python functions for Input signals (step, impulse, ramp)
     using attributes already resolved via set_parameters()/resolve_param.
     """
     def get_numeric(attrs, key):
@@ -530,9 +527,6 @@ def generate_input_signal(data):
             A0 = get_numeric(resolved, "data-a0")
             t0 = get_numeric(resolved, "data-t0")
             m_param = get_numeric(resolved, "data-m")
-            f = get_numeric(resolved, "data-f")
-            phase = get_numeric(resolved, "data-phase")
-            off = get_numeric(resolved, "data-offset")
             if sig == "step":
                 funcs[bid] = lambda t, A=A, A0=A0, t0=t0: A if t >= t0 else A0
             elif sig == "impulse":
@@ -540,15 +534,6 @@ def generate_input_signal(data):
                 funcs[bid] = lambda t, A=A, t0=t0, eps=eps: A / eps if abs(t - t0) < eps else 0.0
             elif sig == "ramp":
                 funcs[bid] = lambda t, A0=A0, m_param=m_param, t0=t0: A0 + m_param * (t - t0) if t >= t0 else A0
-            elif sig == "sine":
-                funcs[bid] = lambda t, A=A, f=f, phase=phase, off=off, t0=t0, A0=A0: A * np.sin(
-                    2 * np.pi * f * (t - t0) + phase) + off if t >= t0 else A0
-            elif sig == "square":
-                funcs[bid] = lambda t, A=A, f=f, phase=phase, off=off, t0=t0, A0=A0: A * np.sign(
-                    np.sin(2 * np.pi * f * (t - t0) + phase)) + off if t >= t0 else A0
-            elif sig == "triangle":
-                funcs[bid] = lambda t, A=A, f=f, off=off, t0=t0, A0=A0: A * (
-                        2 * abs(2 * ((f * (t - t0)) % 1) - 1) - 1) + off if t >= t0 else A0
             else:
                 raise ValueError(f"Unsupported signal '{sig}'")
     return funcs
