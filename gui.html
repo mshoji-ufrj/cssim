@@ -131,6 +131,14 @@
       line-height: 1.3;
       font-size: 14px;
     }
+    .text-block-content mjx-container {
+      font-size: 1em;
+      max-width: 100%;
+    }
+    .text-block-content mjx-container > svg {
+      max-width: 100%;
+      height: auto;
+    }
     .block-name {
       position: absolute;
       width: 100%;
@@ -629,6 +637,11 @@
 
       renderTextBlockContent(textContent, value) {
         const text = this.normalizeTextBlockValue(value);
+        if (!textContent.isConnected) {
+          textContent.textContent = text;
+          requestAnimationFrame(() => this.renderTextBlockContent(textContent, text));
+          return;
+        }
         if (window.MathJax?.typesetClear) {
           window.MathJax.typesetClear([textContent]);
         }

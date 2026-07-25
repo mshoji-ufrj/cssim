@@ -1,0 +1,331 @@
+{
+  "blocks": [
+    {
+      "id": "Block0",
+      "type": "input",
+      "x": 55,
+      "y": 238,
+      "attributes": {
+        "data-a": "1",
+        "data-a0": "0",
+        "data-m": "",
+        "data-name": "Entrada",
+        "data-signal": "step",
+        "data-t0": "0"
+      },
+      "connectors": [
+        {
+          "position": "right",
+          "id": "Block0_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block1",
+      "type": "operation",
+      "x": 224,
+      "y": 244,
+      "attributes": {
+        "data-name": "",
+        "data-operator-1": "+",
+        "data-operator-2": "-",
+        "data-position": "bottom"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block1_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block1_connector_right"
+        },
+        {
+          "position": "bottom",
+          "id": "Block1_connector_bottom"
+        }
+      ]
+    },
+    {
+      "id": "Block2",
+      "type": "transfer_function",
+      "x": 338,
+      "y": 241,
+      "attributes": {
+        "data-denominator": "T*s",
+        "data-name": "Função de transferência",
+        "data-numerator": "1"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block2_connector_left"
+        },
+        {
+          "position": "right",
+          "id": "Block2_connector_right"
+        }
+      ]
+    },
+    {
+      "id": "Block3",
+      "type": "output",
+      "x": 538,
+      "y": 243,
+      "attributes": {
+        "data-name": "Saída"
+      },
+      "connectors": [
+        {
+          "position": "left",
+          "id": "Block3_connector_left"
+        }
+      ]
+    },
+    {
+      "id": "Block4",
+      "type": "text",
+      "x": 145,
+      "y": 237,
+      "attributes": {
+        "data-name": "",
+        "data-text": "$u_1$"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block5",
+      "type": "text",
+      "x": 179,
+      "y": 237,
+      "attributes": {
+        "data-name": "",
+        "data-text": "$v_{1,a}$"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block6",
+      "type": "text",
+      "x": 248,
+      "y": 295,
+      "attributes": {
+        "data-name": "",
+        "data-text": "$v_{1,b}$"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block7",
+      "type": "text",
+      "x": 271,
+      "y": 241,
+      "attributes": {
+        "data-name": "",
+        "data-text": "$w_1$"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block8",
+      "type": "text",
+      "x": 303,
+      "y": 241,
+      "attributes": {
+        "data-name": "",
+        "data-text": "$v_2$"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block9",
+      "type": "text",
+      "x": 460,
+      "y": 244,
+      "attributes": {
+        "data-name": "",
+        "data-text": "$w_2$"
+      },
+      "connectors": []
+    },
+    {
+      "id": "Block10",
+      "type": "text",
+      "x": 502,
+      "y": 243,
+      "attributes": {
+        "data-name": "",
+        "data-text": "$y_1$"
+      },
+      "connectors": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "Connection1",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block0",
+        "position": "right",
+        "id": "Block0_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "left",
+        "id": "Block1_connector_left"
+      },
+      "path": [
+        [
+          147.5,
+          270
+        ],
+        [
+          147.5,
+          271
+        ],
+        [
+          225.5,
+          271
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection2",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "right",
+        "id": "Block1_connector_right"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block2",
+        "position": "left",
+        "id": "Block2_connector_left"
+      },
+      "path": [
+        [
+          276.5,
+          271
+        ],
+        [
+          276.5,
+          273
+        ],
+        [
+          339.5,
+          273
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection3",
+      "from": {
+        "type": "block-connector",
+        "blockId": "Block2",
+        "position": "right",
+        "id": "Block2_connector_right"
+      },
+      "to": {
+        "type": "line-connector",
+        "id": "lineConnector1"
+      },
+      "path": [
+        [
+          460.5,
+          273
+        ],
+        [
+          460.5,
+          275
+        ],
+        [
+          499,
+          275
+        ]
+      ],
+      "arrow": false
+    },
+    {
+      "id": "Connection4",
+      "from": {
+        "type": "line-connector",
+        "id": "lineConnector1"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block3",
+        "position": "left",
+        "id": "Block3_connector_left"
+      },
+      "path": [
+        [
+          499,
+          275
+        ],
+        [
+          539.5,
+          275
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "Connection5",
+      "from": {
+        "type": "line-connector",
+        "id": "lineConnector1"
+      },
+      "to": {
+        "type": "block-connector",
+        "blockId": "Block1",
+        "position": "bottom",
+        "id": "Block1_connector_bottom"
+      },
+      "path": [
+        [
+          499,
+          275
+        ],
+        [
+          499,
+          276
+        ],
+        [
+          499,
+          276
+        ],
+        [
+          499,
+          379
+        ],
+        [
+          490,
+          379
+        ],
+        [
+          250,
+          379
+        ],
+        [
+          250,
+          348
+        ],
+        [
+          251,
+          348
+        ],
+        [
+          251,
+          296.5
+        ]
+      ],
+      "arrow": true
+    }
+  ],
+  "sim_time": 10,
+  "step_size": 0.001
+}
