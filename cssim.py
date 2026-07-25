@@ -387,6 +387,40 @@ def categorize_blocks(data, G, param_values=None):
             })
     return input_blocks, tf_blocks, static_blocks, pid_blocks, output_blocks, idx_cursor
 
+def generate_input_signal(data):
+    """
+    Generate Python functions for Input signals (step, impulse, ramp)
+    using attributes already resolved via set_parameters()/resolve_param.
+    """
+    def get_numeric(attrs, key):
+        default = INPUT_NUMERIC_DEFAULTS.get(key, 0.0)
+        val = attrs.get(key, default) if attrs else default
+        return parse_float(val, default)
+
+    funcs = {}
+    for b in data["blocks"]:
+        if b["type"] == "input":
+            bid = b["id"]
+            at = b.get("attributes", {})
+            resolved = b.get("resolved_attributes")
+            if resolved is None:
+                resolved = resolve_input_attributes(at)
+
+            sig = (resolved.get("data-signal") or at.get("data-signal") or "step").lower()
+            A = get_numeric(resolved, "data-a")
+            A0 = get_numeric(resolved, "data-a0")
+            t0 = get_numeric(resolved, "data-t0")
+            m_param = get_numeric(resolved, "data-m")
+            if sig == "step":
+                funcs[bid] = lambda t, A=A, A0=A0, t0=t0: A if t >= t0 else A0
+            elif sig == "impulse":
+                eps = 1e-3
+                funcs[bid] = lambda t, A=A, t0=t0, eps=eps: A / eps if t0 <= t < t0 + eps else 0.0
+            elif sig == "ramp":
+                funcs[bid] = lambda t, A0=A0, m_param=m_param, t0=t0: A0 + m_param * (t - t0) if t >= t0 else A0
+            else:
+                raise ValueError(f"Unsupported signal '{sig}'")
+    return funcs
 
 def tf_to_ss(num, den, verbose=False, param_values=None):
     """
@@ -503,42 +537,6 @@ def tf_to_ss(num, den, verbose=False, param_values=None):
         print(f"D = {D}")
 
     return A, B, C, D
-
-def generate_input_signal(data):
-    """
-    Generate Python functions for Input signals (step, impulse, ramp)
-    using attributes already resolved via set_parameters()/resolve_param.
-    """
-    def get_numeric(attrs, key):
-        default = INPUT_NUMERIC_DEFAULTS.get(key, 0.0)
-        val = attrs.get(key, default) if attrs else default
-        return parse_float(val, default)
-
-    funcs = {}
-    for b in data["blocks"]:
-        if b["type"] == "input":
-            bid = b["id"]
-            at = b.get("attributes", {})
-            resolved = b.get("resolved_attributes")
-            if resolved is None:
-                resolved = resolve_input_attributes(at)
-
-            sig = (resolved.get("data-signal") or at.get("data-signal") or "step").lower()
-            A = get_numeric(resolved, "data-a")
-            A0 = get_numeric(resolved, "data-a0")
-            t0 = get_numeric(resolved, "data-t0")
-            m_param = get_numeric(resolved, "data-m")
-            if sig == "step":
-                funcs[bid] = lambda t, A=A, A0=A0, t0=t0: A if t >= t0 else A0
-            elif sig == "impulse":
-                eps = 1e-3
-                funcs[bid] = lambda t, A=A, t0=t0, eps=eps: A / eps if t0 <= t < t0 + eps else 0.0
-            elif sig == "ramp":
-                funcs[bid] = lambda t, A0=A0, m_param=m_param, t0=t0: A0 + m_param * (t - t0) if t >= t0 else A0
-            else:
-                raise ValueError(f"Unsupported signal '{sig}'")
-    return funcs
-
 
 def build_solver(input_blocks, static_blocks, tf_blocks, pid_blocks, total_states):
     """
