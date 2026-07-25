@@ -199,6 +199,17 @@
       box-sizing: border-box;
     }
   </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script defer id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
   <div id="controls-container">
@@ -613,7 +624,20 @@
             block.appendChild(textContent);
           }
         }
-        textContent.textContent = this.normalizeTextBlockValue(value);
+        this.renderTextBlockContent(textContent, value);
+      }
+
+      renderTextBlockContent(textContent, value) {
+        const text = this.normalizeTextBlockValue(value);
+        if (window.MathJax?.typesetClear) {
+          window.MathJax.typesetClear([textContent]);
+        }
+        textContent.textContent = text;
+        if (window.MathJax?.typesetPromise) {
+          window.MathJax.typesetPromise([textContent]).catch(error => {
+            console.error('Could not render MathJax in text block:', error);
+          });
+        }
       }
 
       updateTransferFunctionBlockContent(block) {
