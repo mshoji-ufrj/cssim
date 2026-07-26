@@ -962,8 +962,6 @@ def open_gui(diagram_path=None, port=8000, width="100%", height=700):
             output_area.clear_output()
             diagram_data = cssim_srv.session_diagrams.get(session_id)
             if diagram_data is None:
-                diagram_data = cssim_srv.last_data_diagram
-            if diagram_data is None:
                 set_status("No synchronized diagram. Please wait for the GUI to send the data.", ok=False)
                 print("No synchronized diagram available.")
                 return
@@ -995,7 +993,6 @@ def open_gui(diagram_path=None, port=8000, width="100%", height=700):
                 set_status(f"Error during simulation: {exc}", ok=False)
                 raise
 
-            cssim_srv.last_data_diagram = diagram_copy
             cssim_srv.session_diagrams[session_id] = diagram_copy
 
             interactive_plot(t, input_signals, input_blocks, outputs, diagram_copy)

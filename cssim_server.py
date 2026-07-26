@@ -11,7 +11,6 @@ from cssim import run_simulation, set_parameters
 
 app = Flask(__name__)
 
-last_data_diagram = None
 session_diagrams = {}
 initial_diagram_path = None
 
@@ -56,9 +55,7 @@ def initial_diagram():
 
 @app.route('/diagram-state', methods=['GET', 'POST'])
 def diagram_state():
-    global last_data_diagram
-
-    session_id = request.args.get('session')
+    session_id = request.args.get('session') or 'default'
 
     if request.method == 'POST':
         payload = request.get_json()
@@ -67,16 +64,10 @@ def diagram_state():
                 "status": "error",
                 "message": "Invalid or missing payload."
             }), 400
-        if session_id:
-            session_diagrams[session_id] = payload
-        last_data_diagram = payload
+        session_diagrams[session_id] = payload
         return jsonify({"status": "ok"})
 
-    data = None
-    if session_id:
-        data = session_diagrams.get(session_id)
-    if data is None:
-        data = last_data_diagram
+    data = session_diagrams.get(session_id)
     if data is None:
         return jsonify({"status": "empty"}), 404
 
@@ -84,8 +75,6 @@ def diagram_state():
 
 @app.route('/run', methods=['POST'])
 def run():
-    global last_data_diagram
-
     try:
         req = request.get_json()
 
@@ -115,8 +104,6 @@ def run():
             simulation_time=sim_time,
             step_size=step_size
         )
-
-        last_data_diagram = data_diagram
 
         return jsonify({"status": "ok", "message": "Simulation completed."})
     except Exception as e:
