@@ -800,6 +800,10 @@ def _apply_ylim_ignoring_impulses(ax, series_values, margin=0.1):
     ax.set_ylim(y_min - pad, y_max + pad)
 
 
+INPUT_PLOT_COLORS = ("#0072B2", "#009E73", "#6F2DA8", "#00BFC4", "#7A9A01", "#1B1B1B")
+OUTPUT_PLOT_COLORS = ("#D55E00", "#E69F00", "#CC3366", "#8C564B", "#FFD700", "#7F7F7F")
+
+
 def plot_signals(t, input_signals, input_blocks, outputs, data_diagram):
     id_to_name = {
         b["id"]: b["attributes"].get("data-name", b["id"])
@@ -811,16 +815,18 @@ def plot_signals(t, input_signals, input_blocks, outputs, data_diagram):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     scale_series = []
-    for in_id in input_blocks:
+    for index, in_id in enumerate(input_blocks):
         u = [input_signals[in_id](ti) for ti in t]
         label = id_to_name.get(in_id, in_id)
-        ax.plot(t, u, '--', label=label)
+        color = INPUT_PLOT_COLORS[index % len(INPUT_PLOT_COLORS)]
+        ax.plot(t, u, '--', color=color, label=label)
         if in_id not in impulses:
             scale_series.append(u)
 
-    for out_id, y in outputs.items():
+    for index, (out_id, y) in enumerate(outputs.items()):
         label = id_to_name.get(out_id, out_id)
-        ax.plot(t, y, label=label)
+        color = OUTPUT_PLOT_COLORS[index % len(OUTPUT_PLOT_COLORS)]
+        ax.plot(t, y, '-', color=color, label=label)
         scale_series.append(y)
 
     _apply_ylim_ignoring_impulses(ax, scale_series)
@@ -872,19 +878,21 @@ def interactive_plot(t, input_signals, input_blocks, outputs, data_diagram):
             fig, ax = plt.subplots(figsize=(10, 6))
 
             scale_series = []
-            for in_id, cb in input_checkboxes.items():
+            for index, (in_id, cb) in enumerate(input_checkboxes.items()):
                 if cb.value:
                     u = [input_signals[in_id](ti) for ti in t]
                     label = id_to_name.get(in_id, in_id)
-                    ax.plot(t, u, '--', label=label)
+                    color = INPUT_PLOT_COLORS[index % len(INPUT_PLOT_COLORS)]
+                    ax.plot(t, u, '--', color=color, label=label)
                     if in_id not in impulses:
                         scale_series.append(u)
 
-            for out_id, cb in output_checkboxes.items():
+            for index, (out_id, cb) in enumerate(output_checkboxes.items()):
                 if cb.value:
                     y = outputs[out_id]
                     label = id_to_name.get(out_id, out_id)
-                    ax.plot(t, y, label=label)
+                    color = OUTPUT_PLOT_COLORS[index % len(OUTPUT_PLOT_COLORS)]
+                    ax.plot(t, y, '-', color=color, label=label)
                     scale_series.append(y)
 
             _apply_ylim_ignoring_impulses(ax, scale_series)
