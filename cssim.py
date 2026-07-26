@@ -800,8 +800,8 @@ def _apply_ylim_ignoring_impulses(ax, series_values, margin=0.1):
     ax.set_ylim(y_min - pad, y_max + pad)
 
 
-INPUT_PLOT_COLORS = ("#0072B2", "#009E73", "#6F2DA8", "#00BFC4", "#7A9A01", "#1B1B1B")
-OUTPUT_PLOT_COLORS = ("#D55E00", "#E69F00", "#CC3366", "#8C564B", "#FFD700", "#7F7F7F")
+INPUT_PLOT_COLORS = ("#1F77B4", "#2CA02C", "#6F2DA8", "#00BFC4", "#7A9A01", "#1B1B1B")
+OUTPUT_PLOT_COLORS = ("#FF7F0E", "#E69F00", "#CC3366", "#8C564B", "#FFD700", "#7F7F7F")
 
 
 def plot_signals(t, input_signals, input_blocks, outputs, data_diagram):
