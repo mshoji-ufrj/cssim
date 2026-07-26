@@ -801,14 +801,6 @@ def _apply_ylim_ignoring_impulses(ax, series_values, margin=0.1):
 
 
 def plot_signals(t, input_signals, input_blocks, outputs, data_diagram):
-    if t is None or input_signals is None or outputs is None or data_diagram is None:
-        from cssim_server import last_sim_t, last_sim_outputs, last_sim_inputs, last_sim_input_blocks, last_data_diagram
-        t = last_sim_t
-        input_signals = last_sim_inputs
-        input_blocks = last_sim_input_blocks
-        outputs = last_sim_outputs
-        data_diagram = last_data_diagram
-
     id_to_name = {
         b["id"]: b["attributes"].get("data-name", b["id"])
         for b in data_diagram["blocks"]
@@ -841,15 +833,7 @@ def plot_signals(t, input_signals, input_blocks, outputs, data_diagram):
     plt.show()
 
 
-def interactive_plot(t=None, input_signals=None, input_blocks=None, outputs=None, data_diagram=None):
-    if t is None or input_signals is None or outputs is None or data_diagram is None:
-        from cssim_server import last_sim_t, last_sim_outputs, last_sim_inputs, last_sim_input_blocks, last_data_diagram
-        t = last_sim_t
-        input_signals = last_sim_inputs
-        input_blocks = last_sim_input_blocks
-        outputs = last_sim_outputs
-        data_diagram = last_data_diagram
-
+def interactive_plot(t, input_signals, input_blocks, outputs, data_diagram):
     if (
         t is None
         or input_signals is None
@@ -1011,10 +995,6 @@ def open_gui(diagram_path=None, port=8000, width="100%", height=700):
                 set_status(f"Error during simulation: {exc}", ok=False)
                 raise
 
-            cssim_srv.last_sim_t = t
-            cssim_srv.last_sim_outputs = outputs
-            cssim_srv.last_sim_inputs = input_signals
-            cssim_srv.last_sim_input_blocks = input_blocks
             cssim_srv.last_data_diagram = diagram_copy
             cssim_srv.session_diagrams[session_id] = diagram_copy
 

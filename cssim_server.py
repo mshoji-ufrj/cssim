@@ -11,10 +11,6 @@ from cssim import run_simulation, set_parameters
 
 app = Flask(__name__)
 
-last_sim_t = None
-last_sim_outputs = None
-last_sim_inputs = None
-last_sim_input_blocks = None
 last_data_diagram = None
 session_diagrams = {}
 initial_diagram_path = None
@@ -88,7 +84,7 @@ def diagram_state():
 
 @app.route('/run', methods=['POST'])
 def run():
-    global last_sim_t, last_sim_outputs, last_sim_inputs, last_sim_input_blocks, last_data_diagram
+    global last_data_diagram
 
     try:
         req = request.get_json()
@@ -114,16 +110,12 @@ def run():
         except Exception:
             pass
         # =================================
-        t, input_signals, input_blocks, outputs = run_simulation(
+        run_simulation(
             data_diagram,
             simulation_time=sim_time,
             step_size=step_size
         )
 
-        last_sim_t = t
-        last_sim_outputs = outputs
-        last_sim_inputs = input_signals
-        last_sim_input_blocks = input_blocks
         last_data_diagram = data_diagram
 
         return jsonify({"status": "ok", "message": "Simulation completed."})
