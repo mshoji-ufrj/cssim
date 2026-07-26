@@ -6,12 +6,12 @@
       "x": 44,
       "y": 129,
       "attributes": {
-        "data-a": "",
-        "data-a0": "",
+        "data-a": "1",
+        "data-a0": "0",
         "data-m": "",
-        "data-name": "Input 1",
+        "data-name": "Entrada",
         "data-signal": "step",
-        "data-t0": ""
+        "data-t0": "0"
       },
       "connectors": [
         {
@@ -47,7 +47,7 @@
       "x": 506,
       "y": 135,
       "attributes": {
-        "data-name": "Output 3"
+        "data-name": "Saída"
       },
       "connectors": [
         {
@@ -59,7 +59,7 @@
   ],
   "connections": [
     {
-      "id": "Connection2",
+      "id": "Connection8",
       "from": {
         "type": "block-connector",
         "blockId": "Block1",
@@ -78,7 +78,15 @@
           158
         ],
         [
-          365.5,
+          443,
+          158
+        ],
+        [
+          443,
+          159
+        ],
+        [
+          443,
           167
         ],
         [
@@ -89,7 +97,7 @@
       "arrow": true
     },
     {
-      "id": "Connection7",
+      "id": "Connection9",
       "from": {
         "type": "block-connector",
         "blockId": "Block0",
@@ -108,7 +116,15 @@
           161
         ],
         [
-          136.5,
+          188,
+          161
+        ],
+        [
+          188,
+          158
+        ],
+        [
+          188,
           158
         ],
         [
