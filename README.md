@@ -1,89 +1,105 @@
-# CSSIM Setup Guide
+# CSSIM — Control Systems Simulator
 
-CSSIM is hosted inside the `tcc` repository, under the `cssim/` folder.
-
-Follow the steps below to prepare the environment, create an isolated virtualenv, install the dependencies, and open the notebook.
+CSSIM is a didactic control-systems simulator integrated with Jupyter Notebook. It provides an interactive block-diagram editor, a Python simulation engine, and interactive time-domain plots. The project is located in the `cssim/` directory of the `tcc` repository.
 
 ## 1. Prerequisites
-- Python 3.12 (or compatible)
-- Up-to-date `pip` (`python3 -m pip install --upgrade pip`)
+
+- Python 3.12 or a compatible version
 - Git
+- `pip`
 
 ## 2. Clone the repository
+
 ```bash
 git clone https://github.com/mshoji-ufrj/tcc.git
 cd tcc/cssim
 ```
 
-## 3. Create and activate the virtualenv
-Create a virtual environment inside the project folder:
+## 3. Create and activate a virtual environment
+
+Create the environment inside the project directory:
+
 ```bash
 python3 -m venv .venv
 ```
-Activate the virtualenv (Linux/macOS):
+
+Activate it on Linux or macOS:
+
 ```bash
 source .venv/bin/activate
 ```
-On Windows PowerShell:
+
+Activate it on Windows PowerShell:
+
 ```powershell
-\.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
 ```
 
-## 4. Install project dependencies
-With the virtualenv active, install all required packages (version pinned) via `requirements.txt`:
+Optionally, upgrade `pip` after activating the environment:
+
 ```bash
-pip install -r requirements.txt
+python -m pip install --upgrade pip
 ```
 
-## 5. Install Jupyter Notebook (if missing)
-If the `jupyter notebook` command is not available, install it:
+## 4. Install the dependencies
+
+The dependency file contains pinned versions of the simulation, GUI, plotting, notebook, and monitoring packages:
+
 ```bash
-pip install notebook
-```
-(Optional) To use JupyterLab:
-```bash
-pip install jupyterlab
+python -m pip install -r requirements.txt
 ```
 
-## 6. Open the main notebook
-Still inside the virtualenv, start the Jupyter server and open the project notebook:
+Jupyter Notebook is included in `requirements.txt`. To use JupyterLab instead, install it separately:
+
+```bash
+python -m pip install jupyterlab
+```
+
+## 5. Open the main notebook
+
+With the virtual environment active and the current directory set to `tcc/cssim`, run:
+
 ```bash
 jupyter notebook cssim_notebook.ipynb
 ```
-The browser should open automatically; if not, copy the URL printed in the terminal and open it manually.
 
-## 7. Next steps
-- Inside the notebook, run the cells in order to start the GUI (`open_gui(...)`) and explore the diagrams.
-- Always keep the virtualenv activated before running scripts or notebooks to ensure the correct package versions are used.
+The browser should open automatically. If it does not, open the URL printed in the terminal.
 
-## 8. PID derivative support
-- The PID block implements derivative action as a realizable filtered term with an internal filter coefficient.
-- `PD` and `PID` blocks therefore use $K_p \left(1 + \frac{T_d s}{(T_d / N) s + 1}\right)$ or the corresponding PID form, instead of an ideal derivative.
-- Ideal derivative action is not supported by the current solver.
-- Generic improper transfer functions in the `transfer_function` block are still outside the current implementation scope.
+## 6. Use CSSIM
 
-## 9. Monitoramento de hardware com `psutil`
-Para registrar o uso de hardware enquanto o notebook `cssim_notebook.ipynb` estiver em uso, execute:
+Run the notebook cells in order. The graphical interface can be opened without a predefined diagram:
 
-```bash
-cd cssim
-python hardware_logger.py start --label sessao_cssim
+```python
+from cssim import open_gui
+
+open_gui()
 ```
 
-Depois use o notebook normalmente. Ao terminar, em outro terminal, envie o sinal de parada:
+To preload one of the example diagrams, pass its path to `open_gui`:
 
-```bash
-cd cssim
-python hardware_logger.py stop --label sessao_cssim
+```python
+open_gui("diagrams/first_order_step.json")
 ```
 
-Os arquivos gerados ficarão em `cssim/monitoring/sessao_cssim/`:
-- `samples.csv`: amostras brutas ao longo do tempo.
-- `summary.json`: resumo estruturado.
-- `report.md`: documento com consumo médio e picos.
+The interface supports input, transfer-function, output, operation, gain, PID-controller, and text blocks. Parameters may contain numeric values or expressions that reference numeric variables defined in the notebook. The names `s` and `t` are reserved for the Laplace variable and time, respectively.
 
-Também é possível verificar se a coleta ainda está ativa:
+After assembling the diagram, set the simulation time and step size in the interface and use the **Run** button displayed below it. Example diagrams are available in the `diagrams/` directory.
 
-```bash
-python hardware_logger.py status --label sessao_cssim
-```
+## 7. PID derivative support
+
+The PID block supports the `P`, `PI`, `PD`, and `PID` modes. Derivative action is implemented as a realizable filtered term with coefficient $N$:
+
+$$
+K_P\frac{T_Ds}{(T_D/N)s+1}.
+$$
+
+The default value is $N=100$. Therefore, `PD` and `PID` controllers use filtered derivative action rather than an ideal derivative. The current solver does not support ideal derivatives. Generic improper transfer functions, for which the numerator degree is greater than the denominator degree, are also unsupported by the `transfer_function` block.
+
+## 8. Current scope
+
+- Continuous-time, linear time-invariant systems modeled in the Laplace domain;
+- arbitrary block-diagram topologies that can be represented in state space;
+- multiple inputs and outputs;
+- time-domain simulation and interactive plotting;
+- proper transfer functions only;
+- no discrete-time or robust-control support in the current version.
