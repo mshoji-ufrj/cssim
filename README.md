@@ -85,21 +85,3 @@ The interface supports input, transfer-function, output, operation, gain, PID-co
 
 After assembling the diagram, set the simulation time and step size in the interface and use the **Run** button displayed below it. Example diagrams are available in the `diagrams/` directory.
 
-## 7. PID derivative support
-
-The PID block supports the `P`, `PI`, `PD`, and `PID` modes. Derivative action is implemented as a realizable filtered term with coefficient $N$:
-
-$$
-K_P\frac{T_Ds}{(T_D/N)s+1}.
-$$
-
-The default value is $N=100$. Therefore, `PD` and `PID` controllers use filtered derivative action rather than an ideal derivative. The current solver does not support ideal derivatives. Generic improper transfer functions, for which the numerator degree is greater than the denominator degree, are also unsupported by the `transfer_function` block.
-
-## 8. Current scope
-
-- Continuous-time, linear time-invariant systems modeled in the Laplace domain;
-- arbitrary block-diagram topologies that can be represented in state space;
-- multiple inputs and outputs;
-- time-domain simulation and interactive plotting;
-- proper transfer functions only;
-- no discrete-time or robust-control support in the current version.
