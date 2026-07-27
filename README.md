@@ -1,6 +1,6 @@
 # CSSIM — Control Systems Simulator
 
-CSSIM is a didactic control-systems simulator integrated with Jupyter Notebook. It provides an interactive block-diagram editor, a Python simulation engine, and interactive time-domain plots. The project is located in the `cssim/` directory of the `tcc` repository.
+CSSIM is a didactic control-systems simulator integrated with Jupyter Notebook. It provides an interactive block-diagram editor, a Python simulation engine, and interactive time-domain plots.
 
 ## 1. Prerequisites
 
@@ -11,8 +11,8 @@ CSSIM is a didactic control-systems simulator integrated with Jupyter Notebook. 
 ## 2. Clone the repository
 
 ```bash
-git clone https://github.com/mshoji-ufrj/tcc.git
-cd tcc/cssim
+git clone https://github.com/mshoji-ufrj/cssim.git
+cd cssim
 ```
 
 ## 3. Create and activate a virtual environment
@@ -57,7 +57,7 @@ python -m pip install jupyterlab
 
 ## 5. Open the main notebook
 
-With the virtual environment active and the current directory set to `tcc/cssim`, run:
+With the virtual environment active and the current directory set to the repository root, run:
 
 ```bash
 jupyter notebook cssim_notebook.ipynb
