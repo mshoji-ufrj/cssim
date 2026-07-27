@@ -1,0 +1,82 @@
+{
+  "label": "cssim_notebook_20260726_230937",
+  "interval_seconds": 1.0,
+  "started_at": "2026-07-26T23:09:37-03:00",
+  "stopped_at": "2026-07-26T23:11:28-03:00",
+  "sample_count": 107,
+  "output_dir": "/home/shoji/tcc_controle/tcc/cssim/monitoring/cssim_notebook_20260726_230937",
+  "metrics": {
+    "cpu_percent": {
+      "label": "CPU",
+      "unit": "%",
+      "average": 7.522,
+      "peak": 26.2,
+      "peak_timestamp": "2026-07-26T23:11:04-03:00",
+      "samples": 107
+    },
+    "memory_percent": {
+      "label": "RAM",
+      "unit": "%",
+      "average": 17.808,
+      "peak": 19.9,
+      "peak_timestamp": "2026-07-26T23:11:17-03:00",
+      "samples": 107
+    },
+    "memory_used_gb": {
+      "label": "RAM used",
+      "unit": "GB",
+      "average": 2.731,
+      "peak": 3.052,
+      "peak_timestamp": "2026-07-26T23:11:17-03:00",
+      "samples": 107
+    },
+    "swap_percent": {
+      "label": "Swap",
+      "unit": "%",
+      "average": 31.1,
+      "peak": 31.1,
+      "peak_timestamp": "2026-07-26T23:09:38-03:00",
+      "samples": 107
+    },
+    "disk_read_mb_s": {
+      "label": "Disk read",
+      "unit": "MB/s",
+      "average": 0.008,
+      "peak": 0.791,
+      "peak_timestamp": "2026-07-26T23:10:10-03:00",
+      "samples": 107
+    },
+    "disk_write_mb_s": {
+      "label": "Disk write",
+      "unit": "MB/s",
+      "average": 0.098,
+      "peak": 0.679,
+      "peak_timestamp": "2026-07-26T23:10:46-03:00",
+      "samples": 107
+    },
+    "net_sent_mb_s": {
+      "label": "Network sent",
+      "unit": "MB/s",
+      "average": 0.156,
+      "peak": 1.224,
+      "peak_timestamp": "2026-07-26T23:10:01-03:00",
+      "samples": 107
+    },
+    "net_recv_mb_s": {
+      "label": "Network received",
+      "unit": "MB/s",
+      "average": 0.156,
+      "peak": 1.224,
+      "peak_timestamp": "2026-07-26T23:10:01-03:00",
+      "samples": 107
+    },
+    "temperature_c": {
+      "label": "Temperature",
+      "unit": "°C",
+      "average": 36.566,
+      "peak": 39.98,
+      "peak_timestamp": "2026-07-26T23:10:28-03:00",
+      "samples": 107
+    }
+  }
+}
