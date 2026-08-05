@@ -1582,8 +1582,8 @@
 
         const simTimeEl = document.getElementById('sim-time');
         const stepSizeEl = document.getElementById('step-size');
-        const simTime = simTimeEl ? parseFloat(simTimeEl.value.replace(',', '.')) || 20 : 20;
-        const stepSize = stepSizeEl ? parseFloat(stepSizeEl.value.replace(',', '.')) || 0.01 : 0.01;
+        const simTime = simTimeEl ? parseFloat(simTimeEl.value.replace(',', '.')) || 10 : 10;
+        const stepSize = stepSizeEl ? parseFloat(stepSizeEl.value.replace(',', '.')) || 0.001 : 0.001;
 
         const diagramData = {
           blocks: blocksData,
