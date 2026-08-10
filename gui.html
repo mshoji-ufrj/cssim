@@ -587,11 +587,11 @@
         block.setAttribute('data-name', name);
         if (blockType === 'input') {
           block.setAttribute('data-signal', 'step');
-          block.setAttribute('data-t0', '');
-          block.setAttribute('data-a0', '');
-          block.setAttribute('data-a', '');
+          block.setAttribute('data-t0', '0');
+          block.setAttribute('data-a0', '0');
+          block.setAttribute('data-a', '1');
           block.setAttribute('data-m', '');
-          block.setAttribute('data-epsilon', '10^-3');
+          block.setAttribute('data-epsilon', '');
         } else if (blockType === 'transfer_function') {
           block.setAttribute('data-numerator', '');
           block.setAttribute('data-denominator', '');
@@ -610,9 +610,9 @@
           `;
         } else if (blockType === 'pid') {
           block.setAttribute('data-mode', 'PID');
-          block.setAttribute('data-kp', '');
-          block.setAttribute('data-ti', '');
-          block.setAttribute('data-td', '');
+          block.setAttribute('data-kp', '1');
+          block.setAttribute('data-ti', '1');
+          block.setAttribute('data-td', '1');
           block.setAttribute('data-filter-n', '100');
         } else if (blockType === 'text') {
           block.setAttribute('data-text', 'Text');
@@ -1298,6 +1298,27 @@
         this.updatePidOptionVisibility(mode);
       }
 
+      setInputOptionDefaults(signal) {
+        document.getElementById('input-t0').value = '0';
+        document.getElementById('input-step-a0').value = '';
+        document.getElementById('input-step-a').value = '';
+        document.getElementById('input-impulse-a').value = '';
+        document.getElementById('input-impulse-epsilon').value = '';
+        document.getElementById('input-ramp-a0').value = '';
+        document.getElementById('input-ramp-m').value = '';
+
+        if (signal === 'step') {
+          document.getElementById('input-step-a0').value = '0';
+          document.getElementById('input-step-a').value = '1';
+        } else if (signal === 'impulse') {
+          document.getElementById('input-impulse-a').value = '1';
+          document.getElementById('input-impulse-epsilon').value = '10^-3';
+        } else if (signal === 'ramp') {
+          document.getElementById('input-ramp-a0').value = '0';
+          document.getElementById('input-ramp-m').value = '1';
+        }
+      }
+
       showTextOptions(block) {
         const options = document.getElementById('text-options');
         options.style.display = 'block';
@@ -1473,9 +1494,9 @@
             this.selectedBlock.setAttribute('data-name', newName);
             this.selectedBlock.setAttribute('data-mode', mode);
             this.selectedBlock.setAttribute('data-kp', kp);
-            this.selectedBlock.setAttribute('data-ti', ti);
-            this.selectedBlock.setAttribute('data-td', td);
-            this.selectedBlock.setAttribute('data-filter-n', filterN);
+            this.selectedBlock.setAttribute('data-ti', mode.includes('I') ? ti : '');
+            this.selectedBlock.setAttribute('data-td', mode.includes('D') ? td : '');
+            this.selectedBlock.setAttribute('data-filter-n', mode.includes('D') ? filterN : '');
 
             const blockNameElem = this.selectedBlock.querySelector('.block-name');
             if (blockNameElem) blockNameElem.innerText = newName;
@@ -1950,11 +1971,7 @@
         } else {
           extraOptions.style.display = 'none';
         }
-        const inputFields = extraOptions.querySelectorAll('input[type="text"]');
-        inputFields.forEach(input => input.value = '');
-        if (signal === 'impulse') {
-          document.getElementById('input-impulse-epsilon').value = '10^-3';
-        }
+        diagram.setInputOptionDefaults(signal);
       });
 
       document.getElementById('save-btn').addEventListener('click', async () => {
