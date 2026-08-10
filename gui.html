@@ -68,29 +68,14 @@
       font-weight: normal;
     }
     .block.pid .pid-content {
-      font-size: 10px;
+      font-size: 12px;
       font-weight: normal;
-      line-height: 1.1;
+      line-height: 1.2;
       max-width: 100%;
-      padding: 2px 4px;
+      padding: 0 6px;
       box-sizing: border-box;
       white-space: normal;
       word-break: break-word;
-      overflow: hidden;
-    }
-    .block.pid .pid-content svg {
-      max-width: 100%;
-      height: auto;
-      display: block;
-    }
-    .block.pid .pid-content .katex {
-      font-size: 0.8em;
-      margin: 0;
-      padding: 0;
-    }
-    .block.pid .pid-content .katex-display {
-      display: inline;
-      margin: 0;
     }
     #pid-options .pid-field {
       display: flex;
@@ -232,10 +217,9 @@
       }
     };
   </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script defer id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-  <!-- KaTeX for fast client-side LaTeX rendering -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 </head>
 <body>
   <div id="controls-container">
@@ -357,7 +341,7 @@
           <option value="PID" selected>PID</option>
         </select>
         <div id="pid-formula" class="pid-formula" style="margin: 10px 0; font-weight: bold;">
-          K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + T<sub>d</sub>*s/(1 + T<sub>d</sub>*s/N))
+          K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + (T<sub>d</sub>*s)/((T<sub>d</sub>/N)*s + 1))
         </div>
         <div id="pid-params">
           <div class="pid-field" id="pid-kp-row">
@@ -699,15 +683,25 @@
         `;
       }
 
-        formatPidEquation(mode) {
+        normalizePidParamValue(value, fallback) {
+          if (typeof value !== 'string') {
+            value = value == null ? '' : String(value);
+          }
+          const trimmed = value.trim();
+          return trimmed === '' ? fallback : trimmed;
+        }
+
+        formatPidEquation(mode, kp, ti, td) {
           const safeMode = (mode || 'PID').toUpperCase();
-          const formulas = {
-            P: 'K_p',
-            PI: 'K_p\\left(1 + \\frac{1}{T_i s}\\right)',
-            PD: 'K_p\\left(1 + \\frac{T_d s}{(T_d/N) s + 1}\\right)',
-            PID: 'K_p\\left(1 + \\frac{1}{T_i s} + \\frac{T_d s}{(T_d/N) s + 1}\\right)'
-          };
-          return formulas[safeMode] || formulas.PID;
+          const kpValue = this.normalizePidParamValue(kp, '');
+          const tiValue = this.normalizePidParamValue(ti, '');
+          const tdValue = this.normalizePidParamValue(td, '');
+
+          if (safeMode === 'P') return kpValue ? kpValue : '';
+          if (safeMode === 'PI') return kpValue && tiValue ? `${kpValue} (1 + 1/(${tiValue}*s))` : '';
+          if (safeMode === 'PD') return kpValue && tdValue ? `${kpValue} (1 + (${tdValue}*s)/((${tdValue}/N)*s + 1))` : '';
+          if (!(kpValue && tiValue && tdValue)) return '';
+          return `${kpValue} (1 + 1/(${tiValue}*s) + (${tdValue}*s)/((${tdValue}/N)*s + 1))`;
         }
 
         updatePidBlockContent(block) {
@@ -716,18 +710,10 @@
           if (!pidContent) return;
 
           const mode = this.resolveAttributeValue(block, 'data-mode', 'PID').toUpperCase();
-          const latex = this.formatPidEquation(mode);
-          if (!latex) {
-            pidContent.textContent = '';
-          } else if (window.katex && katex.renderToString) {
-            try {
-              pidContent.innerHTML = katex.renderToString(latex, {throwOnError:false, displayMode:false});
-            } catch (e) {
-              pidContent.textContent = latex;
-            }
-          } else {
-            pidContent.textContent = latex;
-          }
+          const kp = this.resolveAttributeValue(block, 'data-kp', '');
+          const ti = this.resolveAttributeValue(block, 'data-ti', '');
+          const td = this.resolveAttributeValue(block, 'data-td', '');
+          pidContent.textContent = this.formatPidEquation(mode, kp, ti, td);
         }
 
       resolveAttributeValue(block, attr, fallback) {
@@ -1345,16 +1331,23 @@
         mode = (mode || 'PID').toUpperCase();
         const options = document.getElementById('pid-options');
         if (options) options.setAttribute('data-mode', mode);
-        const formula = this.formatPidEquation(mode);
+        const formulas = {
+          'P': 'K_p',
+          'PI': 'K_p\\left(1 + \\frac{1}{T_i s}\\right)',
+          'PD': 'K_p\\left(1 + \\frac{T_d s}{\\left(\\frac{T_d}{N}\\right)s + 1}\\right)',
+          'PID': 'K_p\\left(1 + \\frac{1}{T_i s} + \\frac{T_d s}{\\left(\\frac{T_d}{N}\\right)s + 1}\\right)'
+        };
         const formulaEl = document.getElementById('pid-formula');
-        if (formulaEl && window.katex && katex.renderToString) {
-          try {
-            formulaEl.innerHTML = katex.renderToString(formula, {throwOnError:false, displayMode:false});
-          } catch (e) {
+        if (formulaEl) {
+          const formula = formulas[mode] || formulas['PID'];
+          if (window.katex) {
+            window.katex.render(formula, formulaEl, {
+              displayMode: true,
+              throwOnError: false
+            });
+          } else {
             formulaEl.textContent = formula;
           }
-        } else if (formulaEl) {
-          formulaEl.textContent = formula;
         }
         const tiRow = document.getElementById('pid-ti-row');
         const tdRow = document.getElementById('pid-td-row');
