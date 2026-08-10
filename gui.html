@@ -61,21 +61,38 @@
     .block.transfer_function { width: 120px; }
     .block.pid {
       width: 120px;
+      height: 70px;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       font-weight: normal;
+      padding: 4px 0;
     }
     .block.pid .pid-content {
-      font-size: 12px;
+      font-size: 9px;
       font-weight: normal;
-      line-height: 1.2;
+      line-height: 1.1;
       max-width: 100%;
-      padding: 0 6px;
+      padding: 2px 4px;
       box-sizing: border-box;
       white-space: normal;
       word-break: break-word;
+      overflow: hidden;
+    }
+    .block.pid .pid-content svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+    .block.pid .pid-content .katex {
+      font-size: 0.75em;
+      margin: 0;
+      padding: 0;
+    }
+    .block.pid .pid-content .katex-display {
+      display: inline;
+      margin: 0;
     }
     #pid-options .pid-field {
       display: flex;
