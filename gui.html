@@ -91,6 +91,9 @@
       flex: 0 0 80px;
       max-width: 80px;
     }
+    #pid-formula .katex {
+      font-size: 0.9em;
+    }
     .block.operation {
       width: 50px;
       height: 50px;
@@ -1334,8 +1337,8 @@
         const formulas = {
           'P': 'K_p',
           'PI': 'K_p\\left(1 + \\frac{1}{T_i s}\\right)',
-          'PD': 'K_p\\left(1 + \\frac{T_d s}{\\left(\\frac{T_d}{N}\\right)s + 1}\\right)',
-          'PID': 'K_p\\left(1 + \\frac{1}{T_i s} + \\frac{T_d s}{\\left(\\frac{T_d}{N}\\right)s + 1}\\right)'
+          'PD': 'K_p\\left(1 + \\frac{T_d s}{\\left(T_d/N\\right)s + 1}\\right)',
+          'PID': 'K_p\\left(1 + \\frac{1}{T_i s} + \\frac{T_d s}{\\left(T_d/N\\right)s + 1}\\right)'
         };
         const formulaEl = document.getElementById('pid-formula');
         if (formulaEl) {
