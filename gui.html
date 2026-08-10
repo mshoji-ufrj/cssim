@@ -1345,21 +1345,16 @@
         mode = (mode || 'PID').toUpperCase();
         const options = document.getElementById('pid-options');
         if (options) options.setAttribute('data-mode', mode);
-        const formulas = {
-          'P': "K_p",
-          'PI': "K_p\\left(1 + \\frac{1}{T_i s}\\right)",
-          'PD': "K_p\\left(1 + \\frac{T_d s}{(T_d/N) s + 1}\\right)",
-          'PID': "K_p\\left(1 + \\frac{1}{T_i s} + \\frac{T_d s}{(T_d/N) s + 1}\\right)"
-        };
+        const formula = this.formatPidEquation(mode);
         const formulaEl = document.getElementById('pid-formula');
         if (formulaEl && window.katex && katex.renderToString) {
           try {
-            formulaEl.innerHTML = katex.renderToString(formulas[mode] || formulas['PID'], {throwOnError:false, displayMode:false});
+            formulaEl.innerHTML = katex.renderToString(formula, {throwOnError:false, displayMode:false});
           } catch (e) {
-            formulaEl.textContent = formulas[mode] || formulas['PID'];
+            formulaEl.textContent = formula;
           }
         } else if (formulaEl) {
-          formulaEl.textContent = formulas[mode] || formulas['PID'];
+          formulaEl.textContent = formula;
         }
         const tiRow = document.getElementById('pid-ti-row');
         const tdRow = document.getElementById('pid-td-row');
