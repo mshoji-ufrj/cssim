@@ -699,26 +699,15 @@
         `;
       }
 
-        normalizePidParamValue(value, fallback) {
-          if (typeof value !== 'string') {
-            value = value == null ? '' : String(value);
-          }
-          const trimmed = value.trim();
-          return trimmed === '' ? fallback : trimmed;
-        }
-
-        formatPidEquation(mode, kp, ti, td) {
+        formatPidEquation(mode) {
           const safeMode = (mode || 'PID').toUpperCase();
-          const kpValue = this.normalizePidParamValue(kp, '');
-          const tiValue = this.normalizePidParamValue(ti, '');
-          const tdValue = this.normalizePidParamValue(td, '');
-
-          if (safeMode === 'P') return kpValue ? kpValue : '';
-            // Build LaTeX expressions for KaTeX rendering
-            if (safeMode === 'PI') return kpValue && tiValue ? `\\displaystyle ${kpValue}\\left(1 + \\frac{1}{${tiValue} s}\\right)` : '';
-            if (safeMode === 'PD') return kpValue && tdValue ? `\\displaystyle ${kpValue}\\left(1 + \\frac{${tdValue} s}{(${tdValue}/N) s + 1}\\right)` : '';
-            if (!(kpValue && tiValue && tdValue)) return '';
-            return `\\displaystyle ${kpValue}\\left(1 + \\frac{1}{${tiValue} s} + \\frac{${tdValue} s}{(${tdValue}/N) s + 1}\\right)`;
+          const formulas = {
+            P: 'K_p',
+            PI: 'K_p\\left(1 + \\frac{1}{T_i s}\\right)',
+            PD: 'K_p\\left(1 + \\frac{T_d s}{(T_d/N) s + 1}\\right)',
+            PID: 'K_p\\left(1 + \\frac{1}{T_i s} + \\frac{T_d s}{(T_d/N) s + 1}\\right)'
+          };
+          return formulas[safeMode] || formulas.PID;
         }
 
         updatePidBlockContent(block) {
@@ -727,10 +716,7 @@
           if (!pidContent) return;
 
           const mode = this.resolveAttributeValue(block, 'data-mode', 'PID').toUpperCase();
-          const kp = this.resolveAttributeValue(block, 'data-kp', '');
-          const ti = this.resolveAttributeValue(block, 'data-ti', '');
-          const td = this.resolveAttributeValue(block, 'data-td', '');
-          const latex = this.formatPidEquation(mode, kp, ti, td);
+          const latex = this.formatPidEquation(mode);
           if (!latex) {
             pidContent.textContent = '';
           } else if (window.katex && katex.renderToString) {
