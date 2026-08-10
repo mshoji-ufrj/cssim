@@ -104,6 +104,7 @@ INPUT_NUMERIC_DEFAULTS = {
     "data-a0": 0.0,
     "data-t0": 0.0,
     "data-m": 1.0,
+    "data-epsilon": 1e-3,
 }
 
 
@@ -414,7 +415,11 @@ def generate_input_signal(data):
             if sig == "step":
                 funcs[bid] = lambda t, A=A, A0=A0, t0=t0: A if t >= t0 else A0
             elif sig == "impulse":
-                eps = 1e-3
+                eps = get_numeric(resolved, "data-epsilon")
+                if not np.isfinite(eps) or eps <= 0:
+                    raise ValueError(
+                        f"Impulse input {bid} requires ε to be a finite positive value."
+                    )
                 funcs[bid] = lambda t, A=A, t0=t0, eps=eps: A / eps if t0 <= t < t0 + eps else 0.0
             elif sig == "ramp":
                 funcs[bid] = lambda t, A0=A0, m_param=m_param, t0=t0: A0 + m_param * (t - t0) if t >= t0 else A0
