@@ -339,7 +339,7 @@
           <option value="PID" selected>PID</option>
         </select>
         <div id="pid-formula" class="pid-formula" style="margin: 10px 0; font-weight: bold;">
-          K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + T<sub>d</sub>*s)
+          K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + T<sub>d</sub>*s/(1 + T<sub>d</sub>*s/N))
         </div>
         <div id="pid-params">
           <div class="pid-field" id="pid-kp-row">
@@ -697,9 +697,9 @@
 
           if (safeMode === 'P') return kpValue ? kpValue : '';
           if (safeMode === 'PI') return kpValue && tiValue ? `${kpValue} (1 + 1/(${tiValue}*s))` : '';
-          if (safeMode === 'PD') return kpValue && tdValue ? `${kpValue} (1 + ${tdValue}*s)` : '';
+          if (safeMode === 'PD') return kpValue && tdValue ? `${kpValue} (1 + ${tdValue}*s/(1 + ${tdValue}*s/N))` : '';
           if (!(kpValue && tiValue && tdValue)) return '';
-          return `${kpValue} (1 + 1/(${tiValue}*s) + ${tdValue}*s)`;
+          return `${kpValue} (1 + 1/(${tiValue}*s) + ${tdValue}*s/(1 + ${tdValue}*s/N))`;
         }
 
         updatePidBlockContent(block) {
@@ -1332,8 +1332,8 @@
         const formulas = {
           'P': 'K<sub>p</sub>',
           'PI': 'K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s))',
-          'PD': 'K<sub>p</sub> (1 + T<sub>d</sub>*s)',
-          'PID': 'K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + T<sub>d</sub>*s)'
+          'PD': 'K<sub>p</sub> (1 + T<sub>d</sub>*s/(1 + T<sub>d</sub>*s/N))',
+          'PID': 'K<sub>p</sub> (1 + 1/(T<sub>i</sub>*s) + T<sub>d</sub>*s/(1 + T<sub>d</sub>*s/N))'
         };
         const formulaEl = document.getElementById('pid-formula');
         if (formulaEl) formulaEl.innerHTML = formulas[mode] || formulas['PID'];
