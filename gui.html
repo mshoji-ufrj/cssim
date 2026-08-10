@@ -1952,6 +1952,9 @@
         }
         const inputFields = extraOptions.querySelectorAll('input[type="text"]');
         inputFields.forEach(input => input.value = '');
+        if (signal === 'impulse') {
+          document.getElementById('input-impulse-epsilon').value = '10^-3';
+        }
       });
 
       document.getElementById('save-btn').addEventListener('click', async () => {
