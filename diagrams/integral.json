@@ -9,6 +9,7 @@
         "data-a": "1",
         "data-a0": "0",
         "data-m": "",
+        "data-epsilon": "",
         "data-name": "Entrada Degrau",
         "data-signal": "step",
         "data-t0": "0"
@@ -42,6 +43,7 @@
       "y": 269,
       "attributes": {
         "data-kp": "Kp",
+        "data-filter-n": "",
         "data-mode": "PI",
         "data-name": "Controlador",
         "data-td": "Td",

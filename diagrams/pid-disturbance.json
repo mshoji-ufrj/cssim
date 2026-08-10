@@ -9,6 +9,7 @@
         "data-a": "1",
         "data-a0": "0",
         "data-m": "",
+        "data-epsilon": "",
         "data-name": "Entrada",
         "data-signal": "step",
         "data-t0": "0"
@@ -102,6 +103,7 @@
         "data-a": "1",
         "data-a0": "0",
         "data-m": "",
+        "data-epsilon": "",
         "data-name": "D(s)",
         "data-signal": "step",
         "data-t0": "0"
@@ -156,7 +158,7 @@
       "x": 259,
       "y": 268,
       "attributes": {
-        "data-filter-n": "",
+        "data-filter-n": "100",
         "data-kp": "Kp",
         "data-mode": "PID",
         "data-name": "Controlador PID",
