@@ -5,8 +5,8 @@ CSSIM is a didactic control-systems simulator integrated with Jupyter Notebook. 
 ## 1. Prerequisites
 
 - Python 3.12 or a compatible version
-- Git
 - `pip`
+- Git
 
 ## 2. Clone the repository
 
@@ -20,7 +20,7 @@ cd cssim
 Create the environment inside the project directory:
 
 ```bash
-python3 -m venv .venv
+python -m venv .venv
 ```
 
 Activate it on Linux or macOS:
@@ -29,13 +29,13 @@ Activate it on Linux or macOS:
 source .venv/bin/activate
 ```
 
-Activate it on Windows PowerShell:
+Activate it on Windows Command Prompt:
 
-```powershell
-.venv\Scripts\Activate.ps1
+```cmd
+.venv\Scripts\activate.bat
 ```
 
-Optionally, upgrade `pip` after activating the environment:
+Upgrade `pip` after activating the environment:
 
 ```bash
 python -m pip install --upgrade pip
@@ -47,12 +47,6 @@ The dependency file contains pinned versions of the simulation, GUI, plotting, n
 
 ```bash
 python -m pip install -r requirements.txt
-```
-
-Jupyter Notebook is included in `requirements.txt`. To use JupyterLab instead, install it separately:
-
-```bash
-python -m pip install jupyterlab
 ```
 
 ## 5. Open the main notebook
