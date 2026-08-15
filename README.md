@@ -2,6 +2,8 @@
 
 CSSIM is a didactic control-systems simulator integrated with Jupyter Notebook. It provides an interactive block-diagram editor, a Python simulation engine, and interactive time-domain plots.
 
+Instalation tutorial: https://youtu.be/vRMpviLoTO0
+
 ## 1. Prerequisites
 
 - Python 3.12 or a compatible version
